@@ -45,7 +45,7 @@ app.use("*", errorHandler);
 
 // Health check
 app.get("/", (c) => {
-  return c.json({ message: "Credit Management API" });
+  return c.json({ message: "1MinuteShop API" });
 });
 
 // API routes
