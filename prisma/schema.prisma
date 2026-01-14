@@ -1,0 +1,368 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// StoreOwnerS (Store Owners)
+// =====================================================
+// storeSubdomain
+
+model StoreOwner {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeName      String           @unique
+  ownerName      String
+  email          String           @unique
+  password       String
+  storeUrl       String?          @unique
+  storeSubdomain String?          @unique
+  status         StoreOwnerStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  lastLoginAt    DateTime?        @map("last_login_at") @db.Timestamptz(6)
+
+  // Relations
+  products       Product[]
+  customers      Customer[]
+  orders         Order[]
+  orderItems     OrderItem[]
+  shoppingCarts  ShoppingCart[]
+  cartItems      CartItem[]
+  storeSettings  StoreSettings?
+  categories     Category[]
+  productReviews ProductReview[]
+  activityLogs   ActivityLog[]
+  refreshTokens  RefreshToken[]
+  tokens         Token[]
+
+  @@index([storeName])
+  @@index([storeSubdomain])
+  @@index([status])
+  @@map("StoreOwners")
+}
+
+enum StoreOwnerStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+// =====================================================
+// PRODUCTS
+// =====================================================
+
+model Product {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeOwnerId    String   @db.Uuid
+  productName     String
+  price           Decimal  @db.Decimal(10, 2)
+  productImageUrl String?
+  description     String?
+  stockQuantity   Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  StoreOwner     StoreOwner      @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+  orderItems     OrderItem[]
+  cartItems      CartItem[]
+  productReviews ProductReview[]
+
+  @@index([storeOwnerId])
+  @@index([productName])
+  @@map("products")
+}
+
+// =====================================================
+// CUSTOMERS
+// =====================================================
+
+model Customer {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeOwnerId String   @db.Uuid
+  customerName String
+  email        String?
+  phoneNumber  String?
+  address      String?
+  city         String?
+  state        String?
+  postalCode   String?
+  country      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  StoreOwner     StoreOwner      @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+  orders         Order[]
+  shoppingCarts  ShoppingCart[]
+  productReviews ProductReview[]
+
+  @@index([storeOwnerId])
+  @@index([email])
+  @@index([customerName])
+  @@map("customers")
+}
+
+// =====================================================
+// ORDERS
+// =====================================================
+
+model Order {
+  id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeOwnerId         String        @db.Uuid
+  customerId           String        @db.Uuid
+  orderNumber          String
+  totalAmount          Decimal       @db.Decimal(10, 2)
+  orderStatus          OrderStatus   @default(PENDING)
+  paymentStatus        PaymentStatus @default(PENDING)
+  paymentScreenshotUrl String?
+  customerNotes        String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  // Relations
+  StoreOwner StoreOwner  @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@unique([storeOwnerId, orderNumber])
+  @@index([storeOwnerId])
+  @@index([customerId])
+  @@index([orderNumber])
+  @@index([orderStatus])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  RECEIVED
+  FAILED
+}
+
+// =====================================================
+// ORDER ITEMS
+// =====================================================
+
+model OrderItem {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId      String   @db.Uuid
+  productId    String   @db.Uuid
+  storeOwnerId String   @db.Uuid
+  quantity     Int
+  unitPrice    Decimal  @db.Decimal(10, 2)
+  totalPrice   Decimal  @db.Decimal(10, 2)
+  createdAt    DateTime @default(now())
+
+  // Relations
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+  StoreOwner StoreOwner @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([storeOwnerId])
+  @@map("order_items")
+}
+
+// =====================================================
+// SHOPPING CART
+// =====================================================
+
+model ShoppingCart {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeOwnerId String   @db.Uuid
+  customerId   String?  @db.Uuid
+  sessionId    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  StoreOwner StoreOwner @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+  customer   Customer?  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  cartItems  CartItem[]
+
+  @@index([storeOwnerId])
+  @@index([sessionId])
+  @@index([customerId])
+  @@map("shopping_cart")
+}
+
+// =====================================================
+// CART ITEMS
+// =====================================================
+
+model CartItem {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cartId       String   @db.Uuid
+  productId    String   @db.Uuid
+  storeOwnerId String   @db.Uuid
+  quantity     Int      @default(1)
+  addedAt      DateTime @default(now())
+
+  // Relations
+  cart       ShoppingCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product    Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  StoreOwner StoreOwner   @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([cartId])
+  @@index([productId])
+  @@index([storeOwnerId])
+  @@map("cart_items")
+}
+
+// =====================================================
+// STORE SETTINGS
+// =====================================================
+
+model StoreSettings {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeOwnerId     String   @unique @db.Uuid
+  storeDescription String?
+  storeLogoUrl     String?
+  storeBannerUrl   String?
+  currency         String   @default("USD")
+  taxPercentage    Decimal  @default(0) @db.Decimal(5, 2)
+  shippingEnabled  Boolean  @default(false)
+  shippingCost     Decimal? @db.Decimal(10, 2)
+  contactEmail     String?
+  contactPhone     String?
+  address          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  StoreOwner StoreOwner @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([storeOwnerId])
+  @@map("store_settings")
+}
+
+// =====================================================
+// CATEGORIES
+// =====================================================
+
+model Category {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeOwnerId     String   @db.Uuid
+  categoryName     String
+  description      String?
+  categoryImageUrl String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  StoreOwner StoreOwner @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+
+  @@unique([storeOwnerId, categoryName])
+  @@index([storeOwnerId])
+  @@map("categories")
+}
+
+// =====================================================
+// PRODUCT REVIEWS
+// =====================================================
+
+model ProductReview {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId    String   @db.Uuid
+  storeOwnerId String   @db.Uuid
+  customerId   String?  @db.Uuid
+  rating       Int
+  reviewText   String?
+  isApproved   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  StoreOwner StoreOwner @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+  customer   Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([productId])
+  @@index([storeOwnerId])
+  @@index([customerId])
+  @@map("product_reviews")
+}
+
+// =====================================================
+// ACTIVITY LOGS (Audit Trail)
+// =====================================================
+
+model ActivityLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeOwnerId String   @db.Uuid
+  actionType   String
+  entityType   String?
+  entityId     String?  @db.Uuid
+  description  String?
+  userType     UserType @default(SYSTEM)
+  createdAt    DateTime @default(now())
+
+  // Relations
+  StoreOwner StoreOwner @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([storeOwnerId])
+  @@index([actionType])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+enum UserType {
+  STORE_OWNER
+  CUSTOMER
+  SYSTEM
+}
+
+// =====================================================
+// Auth Tables
+// =====================================================
+
+model RefreshToken {
+  id           String   @id @default(cuid())
+  storeOwnerId String   @db.Uuid
+  tokenHash    String   @unique
+  expiresAt    DateTime
+  revoked      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  storeOwner StoreOwner @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+  tokens     Token[]
+
+  @@index([storeOwnerId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Token {
+  id             String   @id @default(cuid())
+  storeOwnerId   String   @db.Uuid
+  RefreshTokenId String
+  tokenHash      String   @unique
+  expiresAt      DateTime
+  revoked        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  storeOwner   StoreOwner   @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+  refreshtoken RefreshToken @relation(fields: [RefreshTokenId], references: [id], onDelete: Cascade)
+
+  @@index([storeOwnerId])
+  @@index([expiresAt])
+  @@map("access_tokens")
+}
