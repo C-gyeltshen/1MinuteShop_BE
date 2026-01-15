@@ -12,12 +12,9 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 const allowedOrigins = [
   FRONTEND_URL,
-  // "http://54.255.195.110:8081",
-  // "http://localhost:8081",
   "http://localhost:3000",
   // Also add backend URLs to handle requests from same origin
   BACKEND_URL,
-  "http://54.255.195.110:8080",
   "http://localhost:8080",
 ];
 
