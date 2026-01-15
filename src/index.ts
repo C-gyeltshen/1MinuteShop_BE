@@ -53,7 +53,7 @@ app.route("/api", router);
 
 // Start server only if not in test environment
 if (process.env.NODE_ENV !== "test") {
-  const port = process.env.PORT || 8000;
+  const port = process.env.PORT || 8080;
 
   serve({
     fetch: app.fetch,
