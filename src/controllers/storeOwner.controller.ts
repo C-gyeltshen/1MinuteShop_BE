@@ -124,6 +124,27 @@ export class StoreOwnerController {
     }
   }
 
+async subDomain(c: Context) {
+  try {
+    // Get subdomain from request body
+    const { subDomain } = await c.req.json();
+
+    if (!subDomain) {
+      return c.json({ success: false, error: "Subdomain is required" }, 400);
+    }
+
+    // Verify subdomain existence using the service
+    const result = await storeOwnerService.verifyStoreSubDomain(subDomain);
+
+    return c.json({ success: true, data: result }, 200);
+  } catch (error: any) {
+    return c.json(
+      { success: false, error: error?.message || "Error verifying subdomain" },
+      400
+    );
+  }
+}
+
   // Login
   async login(c: Context) {
     try {
