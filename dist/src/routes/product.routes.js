@@ -4,7 +4,7 @@ import { ProductController } from "../controllers/product.controller.js";
 const productRoutes = new Hono();
 const productController = new ProductController();
 // Protected routes (require authentication)
-productRoutes.use("*", authMiddleware);
+// productRoutes.use("*", authMiddleware);
 // POST - Create product
 productRoutes.post("/", (c) => productController.createProduct(c));
 // GET - Get all products for store owner (authenticated)
