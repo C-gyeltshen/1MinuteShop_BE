@@ -111,6 +111,13 @@ export class StoreOwnerService {
   async getAll(){
     const allStoreData = await storeOwnerRepository.findAll()
   }
+  
+  async verifyStoreSubDomain(storeSubDomain: string){
+    const subDomain = await storeOwnerRepository.findSubDomain(storeSubDomain);
+    if (subDomain!) throw new Error("Subdomain do not exist")
+    return {"subDomain": subDomain}
+    
+  }
 
   /////////login
   async login(email: string, password: string) {

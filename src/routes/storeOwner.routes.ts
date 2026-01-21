@@ -32,4 +32,5 @@ storeOwnerRoutes.get("/me", authMiddleware, (c) => controller.getProfile(c));
 // GET /api/store-ownerxs/:id - Get store owner by ID (public)
 storeOwnerRoutes.get("/:id", (c) => controller.getProfileById(c));
 
+
 export default storeOwnerRoutes;
