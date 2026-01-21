@@ -57,6 +57,11 @@ export class StoreOwnerRepository {
             where: { id },
         });
     }
+    async findSubDomain(storeSubdomain) {
+        return await prisma.storeOwner.findUnique({
+            where: { storeSubdomain }
+        });
+    }
     ///////login
     async findByEmailWithPassword(email) {
         if (!email) {
