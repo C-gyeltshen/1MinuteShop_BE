@@ -73,11 +73,6 @@ export class StoreOwnerRepository {
     });
   }
 
-  async findSubDomain(storeSubdomain: string){
-    return await prisma.storeOwner.findUnique({
-      where: {storeSubdomain}
-    })
-  }
   ///////login
   async findByEmailWithPassword(email: string) {
     if (!email) {
@@ -162,4 +157,24 @@ export class StoreOwnerRepository {
       data: { revoked: true },
     });
   }
+
+  // others
+
+  async findSubDomain(storeSubdomain: string){
+    return await prisma.storeOwner.findUnique({
+      where: {storeSubdomain}
+    })
+  }
+
+  // async findStoreDataBySubDomain(storeSubDomain: string){
+  //   return await prisma.storeOwner.findUnique({
+  //     where: {
+  //       storeSubdomain: storeSubDomain
+  //     },
+  //     select: {
+        
+  //     }
+  //   })
+  // }
 }
+
