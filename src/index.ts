@@ -10,18 +10,34 @@ const app = new Hono();
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8080";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
-const allowedOrigins = [
-  FRONTEND_URL,
-  "http://localhost:3000",
-  // Also add backend URLs to handle requests from same origin
-  BACKEND_URL,
-  "http://localhost:8080",
-];
+// Function to determine allowed origins dynamically
+const getAllowedOrigins = () => {
+  const baseOrigins = [
+    FRONTEND_URL,
+    "http://localhost:3000",
+    "https://laso.la",
+    "http://localhost:8080",
+    BACKEND_URL,
+  ];
+
+  return (origin: string): string | null => {
+    // Allow exact matches
+    if (baseOrigins.includes(origin)) return origin;
+
+    // Allow dynamic subdomains on laso.la (e.g., mystore.laso.la)
+    if (/^https:\/\/[a-zA-Z0-9-]+\.laso\.la$/.test(origin)) return origin;
+
+    // Allow dynamic subdomains on localhost:3000 for development (e.g., 911.localhost:3000)
+    if (/^http:\/\/[a-zA-Z0-9-]+\.localhost:3000$/.test(origin)) return origin;
+
+    return null;
+  };
+};
 
 app.use(
   "*",
   cors({
-    origin: allowedOrigins,
+    origin: getAllowedOrigins(),
     credentials: true, // Required for httpOnly cookies
     allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
