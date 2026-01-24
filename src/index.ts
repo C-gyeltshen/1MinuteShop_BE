@@ -2,12 +2,12 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { serve } from "@hono/node-server";
+import { getCookie } from "hono/cookie"; // Add this import
 import router from "./routes/index.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 
 const app = new Hono();
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8080";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 // Function to determine allowed origins dynamically
@@ -16,8 +16,6 @@ const getAllowedOrigins = () => {
     FRONTEND_URL,
     "http://localhost:3000",
     "https://laso.la",
-    "http://localhost:8080",
-    BACKEND_URL,
   ];
 
   return (origin: string): string | null => {
@@ -27,7 +25,7 @@ const getAllowedOrigins = () => {
     // Allow dynamic subdomains on laso.la (e.g., mystore.laso.la)
     if (/^https:\/\/[a-zA-Z0-9-]+\.laso\.la$/.test(origin)) return origin;
 
-    // Allow dynamic subdomains on localhost:3000 for development (e.g., 911.localhost:3000)
+    // Allow dynamic subdomains on localhost:3000 for development
     if (/^http:\/\/[a-zA-Z0-9-]+\.localhost:3000$/.test(origin)) return origin;
 
     return null;
@@ -38,7 +36,7 @@ app.use(
   "*",
   cors({
     origin: getAllowedOrigins(),
-    credentials: true, // Required for httpOnly cookies
+    credentials: true, // ✓ Required for cookies
     allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     exposeHeaders: ["Content-Length", "Set-Cookie"],
@@ -51,6 +49,12 @@ app.use("*", logger());
 app.use("*", async (c, next) => {
   console.log(`${c.req.method} ${c.req.path}`);
   console.log("Origin:", c.req.header("origin"));
+  
+  // Debug: Log cookies being received
+  const accessToken = getCookie(c, "accessToken");
+  const refreshToken = getCookie(c, "refreshToken");
+  console.log("Received cookies:", { accessToken: !!accessToken, refreshToken: !!refreshToken });
+  
   await next();
 });
 
@@ -76,5 +80,4 @@ if (process.env.NODE_ENV !== "test") {
   console.log(`Server running on http://localhost:${port}`);
 }
 
-// Export app for testing
 export { app };
