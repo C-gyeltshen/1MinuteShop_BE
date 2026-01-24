@@ -52,7 +52,7 @@ export class ProductService {
     if (products.length === 0) {
       throw {
         statusCode: 404,
-        message: "Store not found or has no products",
+        message: "Pro",
       };
     }
 
