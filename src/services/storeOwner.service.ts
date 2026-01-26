@@ -4,7 +4,7 @@ import type {
   UpdateStoreOwnerInput,
 } from "../types/storeOwner.types.js";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
 
 const storeOwnerRepository = new StoreOwnerRepository();
 
@@ -30,28 +30,36 @@ interface TokenPayload {
 
 export class StoreOwnerService {
   async register(data: CreateStoreOwnerInput) {
+    // Check email uniqueness
     const existingEmail = await storeOwnerRepository.findByEmail(data.email);
     if (existingEmail) {
       throw new Error("Email already exists, please try with a new email");
     }
 
+    // Check store name uniqueness
     const existingStoreName = await storeOwnerRepository.findByStoreName(
-      data.storeName,
+      data.storeName
     );
     if (existingStoreName) {
       throw new Error("Store name taken, try another name");
     }
 
-    // NEW: Check if subdomain will be unique before creating user
-    const potentialSubdomain = data.storeName.replace(/\s+/g, "").toLowerCase();
-    const existingSubdomain =
-      await storeOwnerRepository.findSubDomain(potentialSubdomain);
-    if (existingSubdomain) {
-      throw new Error(
-        "A store with a similar name already exists. Please choose a different store name.",
-      );
+    // Generate and check subdomain uniqueness BEFORE creating user
+    let baseSubdomain = data.storeName.replace(/\s+/g, "").toLowerCase();
+    let subDomain = baseSubdomain;
+    let counter = 1;
+
+    // If subdomain exists, add number suffix
+    while (await storeOwnerRepository.findSubDomain(subDomain)) {
+      subDomain = `${baseSubdomain}${counter}`;
+      counter++;
+      
+      if (counter > 100) {
+        throw new Error("Unable to generate unique subdomain. Please choose a different store name.");
+      }
     }
 
+    // Hash password and create user
     const password = await bcrypt.hash(data.password, 10);
     const owner = await storeOwnerRepository.create({ ...data, password });
 
@@ -59,11 +67,10 @@ export class StoreOwnerService {
       throw new Error("Failed to create store owner data");
     }
 
-    // Generate subdomain and URL
-    const subDomain = potentialSubdomain; // Use the same value we checked
+    // Generate URL
     const subDomainUrl = `https://${subDomain}.laso.la`;
 
-    // Update the store subdomain in the database
+    // Update subdomain and URL in database
     await storeOwnerRepository.updateStoreSubDomain(owner.id, subDomain);
     await storeOwnerRepository.updateStoreUrl(owner.id, subDomainUrl);
 
@@ -74,7 +81,7 @@ export class StoreOwnerService {
       email: owner.email,
       status: owner.status,
       storeSubdomain: subDomain,
-      storeUrl: subDomainUrl,
+      storeUrl: subDomainUrl
     };
   }
 
@@ -90,7 +97,7 @@ export class StoreOwnerService {
       email: owner.email,
       status: owner.status,
       storeSubdomain: owner.storeSubdomain,
-      storeUrl: owner.storeUrl,
+      storeUrl: owner.storeUrl
     };
   }
 
@@ -124,21 +131,23 @@ export class StoreOwnerService {
     const allStoreData = await storeOwnerRepository.findAll();
     return allStoreData;
   }
-
+  
   // FIXED: Correct logic for subdomain verification
   async verifyStoreSubDomain(storeSubDomain: string) {
     const subDomain = await storeOwnerRepository.findSubDomain(storeSubDomain);
-
-    if (!subDomain) throw new Error("Subdomain does not exist");
-
+    
+    if (!subDomain) {
+      throw new Error("Subdomain does not exist");
+    }
+    
     return {
       exists: true,
       storeOwner: {
         id: subDomain.id,
         storeName: subDomain.storeName,
         storeSubdomain: subDomain.storeSubdomain,
-        storeUrl: subDomain.storeUrl,
-      },
+        storeUrl: subDomain.storeUrl
+      }
     };
   }
 
@@ -174,14 +183,14 @@ export class StoreOwnerService {
     const refreshTokenRecord = await storeOwnerRepository.saveRefreshToken(
       owner.id,
       refreshToken,
-      refreshExpiresAt,
+      refreshExpiresAt
     );
 
     await storeOwnerRepository.saveAccessToken(
       owner.id,
       refreshTokenRecord.id,
       accessToken,
-      accessExpiresAt,
+      accessExpiresAt
     );
 
     return {
@@ -200,13 +209,13 @@ export class StoreOwnerService {
     try {
       const decoded = jwt.verify(
         refreshToken,
-        JWT_REFRESH_SECRET,
+        JWT_REFRESH_SECRET
       ) as TokenPayload;
 
       // Verify token exists in DB and hasn't been revoked/expired
       const isValid = await storeOwnerRepository.findRefreshToken(
         decoded.id,
-        refreshToken,
+        refreshToken
       );
       if (!isValid) throw new Error("Token revoked or invalid");
 
@@ -218,7 +227,7 @@ export class StoreOwnerService {
         id: owner.id,
         storeName: owner.storeName,
         email: owner.email,
-        storeSubdomain: owner.storeSubdomain,
+        storeSubdomain: owner.storeSubdomain
       });
 
       // Update access token expiry
@@ -227,7 +236,7 @@ export class StoreOwnerService {
         owner.id,
         isValid.id,
         newAccessToken,
-        accessExpiresAt,
+        accessExpiresAt
       );
 
       return {
