@@ -6,7 +6,6 @@ function buildCookieAttributes(c, maxAgeSeconds) {
     const origin = c.req.header("origin");
     const isHttps = reqUrl.protocol === "https:" ||
         (origin ? origin.startsWith("https://") : false);
-    // Determine cross-site by comparing origins (scheme+host+port)
     let isCrossSite = false;
     try {
         if (origin) {
@@ -17,7 +16,6 @@ function buildCookieAttributes(c, maxAgeSeconds) {
     catch {
         isCrossSite = false;
     }
-    // SameSite strategy: use None only when cross-site over HTTPS; else Lax
     const sameSite = isCrossSite && isHttps ? "None" : "Lax";
     const secure = isHttps ? "Secure; " : "";
     return `HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=${maxAgeSeconds}`;
@@ -33,16 +31,15 @@ export class StoreOwnerController {
             // Auto-login after successful registration
             try {
                 const { accessToken, refreshToken, user } = await storeOwnerService.login(data.email, data.password);
+                // Cookie expiry times (30 days for access, 180 days for refresh)
                 const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60); // 30 days
-                const refreshAttrs = buildCookieAttributes(c, 6 * 30 * 24 * 60 * 60); // 180 days
-                // Set HttpOnly cookies
+                const refreshAttrs = buildCookieAttributes(c, 180 * 24 * 60 * 60); // 180 days
                 c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
                 c.header("Set-Cookie", `refreshToken=${refreshToken}; ${refreshAttrs}`, { append: true });
                 return c.json({ success: true, data: user }, 201);
             }
             catch (loginError) {
                 console.error("Auto-login failed after registration:", loginError);
-                // Registration succeeded but auto-login failed, return user data anyway
                 return c.json({
                     success: true,
                     data: owner,
@@ -54,7 +51,6 @@ export class StoreOwnerController {
             return c.json({ success: false, error: error?.message || "Registration failed" }, 400);
         }
     }
-    // Get store owner by ID
     async getById(c) {
         try {
             const id = c.req.param("id");
@@ -71,7 +67,6 @@ export class StoreOwnerController {
             }, 400);
         }
     }
-    // Update store owner
     async update(c) {
         try {
             const id = c.req.param("id");
@@ -83,7 +78,6 @@ export class StoreOwnerController {
             return c.json({ success: false, error: error?.message || "Update failed" }, 400);
         }
     }
-    // Delete store owner
     async delete(c) {
         try {
             const id = c.req.param("id");
@@ -96,12 +90,10 @@ export class StoreOwnerController {
     }
     async subDomain(c) {
         try {
-            // Get subdomain from request body
             const { subDomain } = await c.req.json();
             if (!subDomain) {
                 return c.json({ success: false, error: "Subdomain is required" }, 400);
             }
-            // Verify subdomain existence using the service
             const result = await storeOwnerService.verifyStoreSubDomain(subDomain);
             return c.json({ success: true, data: result }, 200);
         }
@@ -109,14 +101,13 @@ export class StoreOwnerController {
             return c.json({ success: false, error: error?.message || "Error verifying subdomain" }, 400);
         }
     }
-    // Login
     async login(c) {
         try {
             const { email, password } = c.get("validatedData");
             const { accessToken, refreshToken, user } = await storeOwnerService.login(email, password);
+            // Cookie expiry times (30 days for access, 180 days for refresh)
             const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60); // 30 days
-            const refreshAttrs = buildCookieAttributes(c, 6 * 30 * 24 * 60 * 60); // 180 days
-            // Set HttpOnly cookies
+            const refreshAttrs = buildCookieAttributes(c, 180 * 24 * 60 * 60); // 180 days
             c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
             c.header("Set-Cookie", `refreshToken=${refreshToken}; ${refreshAttrs}`, {
                 append: true,
@@ -127,7 +118,6 @@ export class StoreOwnerController {
             return c.json({ success: false, error: error.message }, 401);
         }
     }
-    // Refresh token
     async refresh(c) {
         try {
             const cookies = c.req.header("Cookie");
@@ -136,7 +126,7 @@ export class StoreOwnerController {
                 return c.json({ success: false, error: "No refresh token" }, 401);
             }
             const { accessToken, user } = await storeOwnerService.refresh(refreshToken);
-            // Set new access token cookie
+            // Set new access token cookie (30 days)
             const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60);
             c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
             return c.json({ success: true, data: user }, 200);
@@ -145,7 +135,6 @@ export class StoreOwnerController {
             return c.json({ success: false, error: error.message }, 401);
         }
     }
-    // Logout
     async logout(c) {
         try {
             const user = c.get("user");
@@ -163,10 +152,9 @@ export class StoreOwnerController {
             return c.json({ success: false, error: error.message }, 400);
         }
     }
-    // Get profile (authenticated)
     async getProfile(c) {
         try {
-            const user = c.get("user"); // Get user from auth middleware
+            const user = c.get("user");
             if (!user.id) {
                 return c.json({ success: false, error: "Unauthorized" }, 401);
             }
@@ -177,7 +165,6 @@ export class StoreOwnerController {
             return c.json({ success: false, error: error.message }, 404);
         }
     }
-    // Get profile by ID (public)
     async getProfileById(c) {
         try {
             const id = c.req.param("id");
@@ -188,7 +175,6 @@ export class StoreOwnerController {
             return c.json({ success: false, error: error.message }, 404);
         }
     }
-    // Helper: Extract cookie from header
     extractCookie(cookieHeader, name) {
         if (!cookieHeader)
             return null;

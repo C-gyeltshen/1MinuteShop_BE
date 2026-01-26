@@ -11,7 +11,7 @@ function buildCookieAttributes(c: Context, maxAgeSeconds: number) {
   const isHttps =
     reqUrl.protocol === "https:" ||
     (origin ? origin.startsWith("https://") : false);
-  // Determine cross-site by comparing origins (scheme+host+port)
+  
   let isCrossSite = false;
   try {
     if (origin) {
@@ -21,7 +21,7 @@ function buildCookieAttributes(c: Context, maxAgeSeconds: number) {
   } catch {
     isCrossSite = false;
   }
-  // SameSite strategy: use None only when cross-site over HTTPS; else Lax
+  
   const sameSite = isCrossSite && isHttps ? "None" : "Lax";
   const secure = isHttps ? "Secure; " : "";
   return `HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=${maxAgeSeconds}`;
@@ -41,12 +41,11 @@ export class StoreOwnerController {
         const { accessToken, refreshToken, user } =
           await storeOwnerService.login(data.email, data.password);
 
+        // Cookie expiry times (30 days for access, 180 days for refresh)
         const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60); // 30 days
-        const refreshAttrs = buildCookieAttributes(c, 6 * 30 * 24 * 60 * 60); // 180 days
+        const refreshAttrs = buildCookieAttributes(c, 180 * 24 * 60 * 60); // 180 days
 
-        // Set HttpOnly cookies
         c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
-
         c.header(
           "Set-Cookie",
           `refreshToken=${refreshToken}; ${refreshAttrs}`,
@@ -56,7 +55,6 @@ export class StoreOwnerController {
         return c.json({ success: true, data: user }, 201);
       } catch (loginError: any) {
         console.error("Auto-login failed after registration:", loginError);
-        // Registration succeeded but auto-login failed, return user data anyway
         return c.json(
           {
             success: true,
@@ -75,7 +73,6 @@ export class StoreOwnerController {
     }
   }
 
-  // Get store owner by ID
   async getById(c: Context) {
     try {
       const id = c.req.param("id");
@@ -95,7 +92,6 @@ export class StoreOwnerController {
     }
   }
 
-  // Update store owner
   async update(c: Context) {
     try {
       const id = c.req.param("id");
@@ -110,7 +106,6 @@ export class StoreOwnerController {
     }
   }
 
-  // Delete store owner
   async delete(c: Context) {
     try {
       const id = c.req.param("id");
@@ -124,28 +119,24 @@ export class StoreOwnerController {
     }
   }
 
-async subDomain(c: Context) {
-  try {
-    // Get subdomain from request body
-    const { subDomain } = await c.req.json();
+  async subDomain(c: Context) {
+    try {
+      const { subDomain } = await c.req.json();
 
-    if (!subDomain) {
-      return c.json({ success: false, error: "Subdomain is required" }, 400);
+      if (!subDomain) {
+        return c.json({ success: false, error: "Subdomain is required" }, 400);
+      }
+
+      const result = await storeOwnerService.verifyStoreSubDomain(subDomain);
+      return c.json({ success: true, data: result }, 200);
+    } catch (error: any) {
+      return c.json(
+        { success: false, error: error?.message || "Error verifying subdomain" },
+        400
+      );
     }
-
-    // Verify subdomain existence using the service
-    const result = await storeOwnerService.verifyStoreSubDomain(subDomain);
-
-    return c.json({ success: true, data: result }, 200);
-  } catch (error: any) {
-    return c.json(
-      { success: false, error: error?.message || "Error verifying subdomain" },
-      400
-    );
   }
-}
 
-  // Login
   async login(c: Context) {
     try {
       const { email, password } = c.get("validatedData") as {
@@ -158,12 +149,11 @@ async subDomain(c: Context) {
         password
       );
 
+      // Cookie expiry times (30 days for access, 180 days for refresh)
       const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60); // 30 days
-      const refreshAttrs = buildCookieAttributes(c, 6 * 30 * 24 * 60 * 60); // 180 days
+      const refreshAttrs = buildCookieAttributes(c, 180 * 24 * 60 * 60); // 180 days
 
-      // Set HttpOnly cookies
       c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
-
       c.header("Set-Cookie", `refreshToken=${refreshToken}; ${refreshAttrs}`, {
         append: true,
       });
@@ -174,7 +164,6 @@ async subDomain(c: Context) {
     }
   }
 
-  // Refresh token
   async refresh(c: Context) {
     try {
       const cookies = c.req.header("Cookie");
@@ -188,7 +177,7 @@ async subDomain(c: Context) {
         refreshToken
       );
 
-      // Set new access token cookie
+      // Set new access token cookie (30 days)
       const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60);
       c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
 
@@ -198,7 +187,6 @@ async subDomain(c: Context) {
     }
   }
 
-  // Logout
   async logout(c: Context) {
     try {
       const user = c.get("user");
@@ -209,7 +197,6 @@ async subDomain(c: Context) {
       const refreshAttrs = buildCookieAttributes(c, 0);
 
       c.header("Set-Cookie", `accessToken=; ${accessAttrs}`);
-
       c.header("Set-Cookie", `refreshToken=; ${refreshAttrs}`, {
         append: true,
       });
@@ -220,10 +207,9 @@ async subDomain(c: Context) {
     }
   }
 
-  // Get profile (authenticated)
   async getProfile(c: Context) {
     try {
-      const user = c.get("user"); // Get user from auth middleware
+      const user = c.get("user");
 
       if (!user.id) {
         return c.json({ success: false, error: "Unauthorized" }, 401);
@@ -236,7 +222,6 @@ async subDomain(c: Context) {
     }
   }
 
-  // Get profile by ID (public)
   async getProfileById(c: Context) {
     try {
       const id = c.req.param("id");
@@ -247,7 +232,6 @@ async subDomain(c: Context) {
     }
   }
 
-  // Helper: Extract cookie from header
   private extractCookie(
     cookieHeader: string | undefined,
     name: string
