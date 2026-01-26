@@ -6,36 +6,45 @@ import { StoreOwnerStatus } from "../types/storeOwner.types.js";
 const storeOwnerService = new StoreOwnerService();
 
 function buildCookieAttributes(c: Context, maxAgeSeconds: number) {
-  const reqUrl = new URL(c.req.url);
+  const fullUrl = c.req.url;
+  console.log(`[COOKIE DEBUG] Full request URL: ${fullUrl}`);
+  
+  // Check if request is HTTPS by looking at the full URL or x-forwarded-proto header
+  const xForwardedProto = c.req.header("x-forwarded-proto");
+  console.log(`[COOKIE DEBUG] x-forwarded-proto header: ${xForwardedProto}`);
+  
+  const isHttps = fullUrl.startsWith("https://") || xForwardedProto === "https";
+  console.log(`[COOKIE DEBUG] Is HTTPS: ${isHttps}`);
+
   const origin = c.req.header("origin");
-  const isHttps = reqUrl.protocol === "https:";
+  console.log(`[COOKIE DEBUG] Origin header: ${origin || "undefined"}`);
 
   let isCrossSite = false;
 
   if (origin) {
     try {
-      const backendOrigin = `${reqUrl.protocol}//${reqUrl.host}`;
+      // For cross-origin detection, use origin + x-forwarded-proto for accuracy
+      const protocol = xForwardedProto || (isHttps ? "https" : "http");
+      const backendOrigin = `${protocol}://${c.req.header("host")}`;
       isCrossSite = origin !== backendOrigin;
       console.log(
-        `[COOKIE] Origin detected: ${origin}, Backend: ${backendOrigin}, IsCrossSite: ${isCrossSite}`,
+        `[COOKIE DEBUG] Comparing origins - Frontend: ${origin}, Backend: ${backendOrigin}, IsCrossSite: ${isCrossSite}`
       );
     } catch (e) {
-      console.log("[COOKIE] Error comparing origins");
-      isCrossSite = false;
+      console.log("[COOKIE DEBUG] Error comparing origins, assuming cross-site");
+      isCrossSite = true;
     }
   } else {
-    // No origin header - assume cross-site for safety (this is the key fix!)
-    // Most browsers will send origin header, so if missing, better to be permissive
     isCrossSite = true;
-    console.log("[COOKIE] No origin header - assuming cross-site");
+    console.log("[COOKIE DEBUG] No origin header - assuming cross-site");
   }
 
-  // SameSite strategy: use None ONLY when cross-site AND HTTPS
-  const sameSite = isCrossSite && isHttps ? "None" : "Lax";
+  // Use SameSite=None when HTTPS AND cross-site
+  const sameSite = isHttps && isCrossSite ? "None" : "Lax";
   const secure = isHttps ? "Secure; " : "";
 
   const attrs = `HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=${maxAgeSeconds}`;
-  console.log(`[COOKIE] Attributes: ${attrs}`);
+  console.log(`[COOKIE DEBUG] Final attributes: ${attrs}`);
 
   return attrs;
 }
