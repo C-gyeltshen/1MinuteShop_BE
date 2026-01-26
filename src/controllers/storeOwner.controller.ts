@@ -5,54 +5,10 @@ import { StoreOwnerStatus } from "../types/storeOwner.types.js";
 
 const storeOwnerService = new StoreOwnerService();
 
-function buildCookieAttributes(c: Context, maxAgeSeconds: number) {
-  const fullUrl = c.req.url;
-  console.log(`[COOKIE DEBUG] Full request URL: ${fullUrl}`);
-
-  // Get the host header (this is the domain the request came to)
-  const hostHeader = c.req.header("host");
-  console.log(`[COOKIE DEBUG] Host header: ${hostHeader}`);
-
-  // Check if request is HTTPS via x-forwarded-proto (set by Render)
-  const xForwardedProto = c.req.header("x-forwarded-proto");
-  const isHttps = xForwardedProto === "https";
-  console.log(`[COOKIE DEBUG] Is HTTPS (via x-forwarded-proto): ${isHttps}`);
-
-  const origin = c.req.header("origin");
-  console.log(`[COOKIE DEBUG] Origin header: ${origin || "undefined"}`);
-
-  let isCrossSite = false;
-
-  if (origin) {
-    try {
-      const protocol = xForwardedProto || "https";
-      const backendOrigin = `${protocol}://${hostHeader}`;
-      isCrossSite = origin !== backendOrigin;
-      console.log(
-        `[COOKIE DEBUG] Frontend: ${origin}, Backend: ${backendOrigin}, IsCrossSite: ${isCrossSite}`,
-      );
-    } catch (e) {
-      console.log(
-        "[COOKIE DEBUG] Error comparing origins, assuming cross-site",
-      );
-      isCrossSite = true;
-    }
-  } else {
-    isCrossSite = true;
-    console.log("[COOKIE DEBUG] No origin header - assuming cross-site");
-  }
-
-  // Use SameSite=None when HTTPS AND cross-site
-  const sameSite = isHttps && isCrossSite ? "None" : "Lax";
-  const secure = isHttps ? "Secure" : "";
-
-  // CRITICAL: Add Domain attribute so cookie is sent on cross-origin requests
-  // For onrender.com domain, use ".onrender.com" to allow all *.onrender.com
-  const domain = hostHeader ? `Domain=${hostHeader}` : "";
-
-  const attrs = `${domain}; Path=/; HttpOnly; ${secure}; SameSite=${sameSite}; Max-Age=${maxAgeSeconds}`;
-  console.log(`[COOKIE DEBUG] Final attributes: ${attrs}`);
-
+// SIMPLIFIED: Always set SameSite=None for Render (HTTPS)
+function buildCookieAttributes(maxAgeSeconds: number): string {
+  const attrs = `Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${maxAgeSeconds}`;
+  console.log(`[COOKIE] Set-Cookie attributes: ${attrs}`);
   return attrs;
 }
 
@@ -69,8 +25,8 @@ export class StoreOwnerController {
         const { accessToken, refreshToken, user } =
           await storeOwnerService.login(data.email, data.password);
 
-        const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60);
-        const refreshAttrs = buildCookieAttributes(c, 6 * 30 * 24 * 60 * 60);
+        const accessAttrs = buildCookieAttributes(30 * 24 * 60 * 60);
+        const refreshAttrs = buildCookieAttributes(6 * 30 * 24 * 60 * 60);
 
         c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
         c.header(
@@ -189,22 +145,17 @@ export class StoreOwnerController {
         password,
       );
 
-      const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60); // 30 days
-      const refreshAttrs = buildCookieAttributes(c, 6 * 30 * 24 * 60 * 60); // 180 days
+      const accessAttrs = buildCookieAttributes(30 * 24 * 60 * 60); // 30 days
+      const refreshAttrs = buildCookieAttributes(6 * 30 * 24 * 60 * 60); // 180 days
 
-      // Set HttpOnly cookies with all required attributes
       c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
       c.header("Set-Cookie", `refreshToken=${refreshToken}; ${refreshAttrs}`, {
         append: true,
       });
 
-      console.log("[LOGIN] Cookies set successfully");
-      console.log(
-        `[LOGIN] accessToken Set-Cookie: accessToken=${accessToken.substring(0, 20)}...; ${accessAttrs}`,
-      );
-      console.log(
-        `[LOGIN] refreshToken Set-Cookie: refreshToken=${refreshToken.substring(0, 20)}...; ${refreshAttrs}`,
-      );
+      console.log("[LOGIN] ✓ Cookies set successfully");
+      console.log(`[LOGIN] Access: accessToken=...; ${accessAttrs}`);
+      console.log(`[LOGIN] Refresh: refreshToken=...; ${refreshAttrs}`);
 
       return c.json({ success: true, data: user }, 200);
     } catch (error: any) {
@@ -225,8 +176,7 @@ export class StoreOwnerController {
       const { accessToken, user } =
         await storeOwnerService.refresh(refreshToken);
 
-      // Set new access token cookie
-      const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60);
+      const accessAttrs = buildCookieAttributes(30 * 24 * 60 * 60);
       c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
 
       return c.json({ success: true, data: user }, 200);
@@ -241,13 +191,11 @@ export class StoreOwnerController {
       const user = c.get("user");
       await storeOwnerService.logout(user.id);
 
-      // Clear cookies
-      const accessAttrs = buildCookieAttributes(c, 0);
-      const refreshAttrs = buildCookieAttributes(c, 0);
+      // Clear cookies by setting Max-Age=0
+      const clearAttrs = buildCookieAttributes(0);
 
-      c.header("Set-Cookie", `accessToken=; ${accessAttrs}`);
-
-      c.header("Set-Cookie", `refreshToken=; ${refreshAttrs}`, {
+      c.header("Set-Cookie", `accessToken=; ${clearAttrs}`);
+      c.header("Set-Cookie", `refreshToken=; ${clearAttrs}`, {
         append: true,
       });
 
@@ -260,7 +208,7 @@ export class StoreOwnerController {
   // Get profile (authenticated)
   async getProfile(c: Context) {
     try {
-      const user = c.get("user"); // Get user from auth middleware
+      const user = c.get("user");
 
       if (!user.id) {
         return c.json({ success: false, error: "Unauthorized" }, 401);
