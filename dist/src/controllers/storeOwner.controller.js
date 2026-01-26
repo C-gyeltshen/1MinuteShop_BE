@@ -4,7 +4,11 @@ const storeOwnerService = new StoreOwnerService();
 function buildCookieAttributes(c, maxAgeSeconds) {
     const reqUrl = new URL(c.req.url);
     const origin = c.req.header("origin");
-    const isHttps = reqUrl.protocol === "https:" ||
+    // Always use HTTPS in production
+    const isProduction = process.env.NODE_ENV === "production" ||
+        reqUrl.host.includes("onrender.com");
+    const isHttps = isProduction ||
+        reqUrl.protocol === "https:" ||
         (origin ? origin.startsWith("https://") : false);
     let isCrossSite = false;
     try {
@@ -31,9 +35,8 @@ export class StoreOwnerController {
             // Auto-login after successful registration
             try {
                 const { accessToken, refreshToken, user } = await storeOwnerService.login(data.email, data.password);
-                // Cookie expiry times (30 days for access, 180 days for refresh)
-                const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60); // 30 days
-                const refreshAttrs = buildCookieAttributes(c, 180 * 24 * 60 * 60); // 180 days
+                const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60);
+                const refreshAttrs = buildCookieAttributes(c, 180 * 24 * 60 * 60);
                 c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
                 c.header("Set-Cookie", `refreshToken=${refreshToken}; ${refreshAttrs}`, { append: true });
                 return c.json({ success: true, data: user }, 201);
@@ -48,7 +51,17 @@ export class StoreOwnerController {
             }
         }
         catch (error) {
-            return c.json({ success: false, error: error?.message || "Registration failed" }, 400);
+            // Better error message handling
+            let errorMessage = "Registration failed";
+            if (error.message) {
+                errorMessage = error.message;
+            }
+            else if (error.code === "P2002") {
+                // Prisma unique constraint error
+                errorMessage = "This store name or email is already taken";
+            }
+            console.error("Registration error:", error);
+            return c.json({ success: false, error: errorMessage }, 400);
         }
     }
     async getById(c) {
@@ -98,7 +111,10 @@ export class StoreOwnerController {
             return c.json({ success: true, data: result }, 200);
         }
         catch (error) {
-            return c.json({ success: false, error: error?.message || "Error verifying subdomain" }, 400);
+            return c.json({
+                success: false,
+                error: error?.message || "Error verifying subdomain",
+            }, 400);
         }
     }
     async login(c) {

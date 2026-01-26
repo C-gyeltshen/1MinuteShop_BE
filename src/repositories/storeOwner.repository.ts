@@ -45,7 +45,7 @@ export class StoreOwnerRepository {
   async update(id: string, data: UpdateStoreOwnerInput) {
     // Remove undefined fields to avoid overwriting with undefined
     const updateData = Object.fromEntries(
-      Object.entries(data).filter(([_, v]) => v !== undefined)
+      Object.entries(data).filter(([_, v]) => v !== undefined),
     );
 
     return await prisma.storeOwner.update({
@@ -88,7 +88,7 @@ export class StoreOwnerRepository {
       select: {
         id: true,
         storeName: true,
-        ownerName:true,
+        ownerName: true,
         email: true,
         password: true,
         storeSubdomain: true,
@@ -113,7 +113,12 @@ export class StoreOwnerRepository {
       },
     });
   }
-  async saveAccessToken(storeOwnerId: string, refreshTokenId: string, token: string, expiresAt: Date) {
+  async saveAccessToken(
+    storeOwnerId: string,
+    refreshTokenId: string,
+    token: string,
+    expiresAt: Date,
+  ) {
     const tokenHash = await bcrypt.hash(token, 10);
     await prisma.token.create({
       data: {
@@ -124,7 +129,7 @@ export class StoreOwnerRepository {
       },
     });
   }
-    async findRefreshToken(storeOwnerId: string, token: string) {
+  async findRefreshToken(storeOwnerId: string, token: string) {
     const refreshTokens = await prisma.refreshToken.findMany({
       where: {
         storeOwnerId,
@@ -160,10 +165,47 @@ export class StoreOwnerRepository {
 
   // others
 
-  async findSubDomain(storeSubdomain: string){
+  async findSubDomain(storeSubdomain: string) {
     return await prisma.storeOwner.findUnique({
-      where: {storeSubdomain}
-    })
+      where: { storeSubdomain },
+    });
+  }
+
+  async isAccessTokenValid(
+    storeOwnerId: string,
+    token: string,
+  ): Promise<boolean> {
+    // Get all non-revoked refresh tokens for this user
+    const refreshTokens = await prisma.refreshToken.findMany({
+      where: {
+        storeOwnerId,
+        revoked: false,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      include: {
+        tokens: {
+          where: {
+            expiresAt: {
+              gt: new Date(),
+            },
+          },
+        },
+      },
+    });
+
+    // Check if the provided token matches any valid access token
+    for (const rt of refreshTokens) {
+      for (const accessToken of rt.tokens) {
+        const isMatch = await bcrypt.compare(token, accessToken.tokenHash);
+        if (isMatch) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   // async findStoreDataBySubDomain(storeSubDomain: string){
@@ -172,7 +214,7 @@ export class StoreOwnerRepository {
   //       storeSubdomain: storeSubDomain
   //     },
   //     select: {
-        
+
   //     }
   //   })
   // }

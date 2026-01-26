@@ -138,7 +138,38 @@ export class StoreOwnerRepository {
     // others
     async findSubDomain(storeSubdomain) {
         return await prisma.storeOwner.findUnique({
-            where: { storeSubdomain }
+            where: { storeSubdomain },
         });
+    }
+    async isAccessTokenValid(storeOwnerId, token) {
+        // Get all non-revoked refresh tokens for this user
+        const refreshTokens = await prisma.refreshToken.findMany({
+            where: {
+                storeOwnerId,
+                revoked: false,
+                expiresAt: {
+                    gt: new Date(),
+                },
+            },
+            include: {
+                tokens: {
+                    where: {
+                        expiresAt: {
+                            gt: new Date(),
+                        },
+                    },
+                },
+            },
+        });
+        // Check if the provided token matches any valid access token
+        for (const rt of refreshTokens) {
+            for (const accessToken of rt.tokens) {
+                const isMatch = await bcrypt.compare(token, accessToken.tokenHash);
+                if (isMatch) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
