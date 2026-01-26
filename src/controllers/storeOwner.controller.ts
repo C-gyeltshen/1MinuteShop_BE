@@ -5,9 +5,12 @@ import { StoreOwnerStatus } from "../types/storeOwner.types.js";
 
 const storeOwnerService = new StoreOwnerService();
 
-// SIMPLIFIED: Always set SameSite=None for Render (HTTPS)
-function buildCookieAttributes(maxAgeSeconds: number): string {
-  const attrs = `Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${maxAgeSeconds}`;
+// Set cookies with SameSite=None AND Domain attribute (required for cross-origin)
+function buildCookieAttributes(c: Context, maxAgeSeconds: number): string {
+  const host = c.req.header("host") || "oneminuteshop-be.onrender.com";
+  // For onrender.com, use the full domain - don't use leading dot
+  const domain = `Domain=${host}`;
+  const attrs = `${domain}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${maxAgeSeconds}`;
   console.log(`[COOKIE] Set-Cookie attributes: ${attrs}`);
   return attrs;
 }
@@ -25,8 +28,8 @@ export class StoreOwnerController {
         const { accessToken, refreshToken, user } =
           await storeOwnerService.login(data.email, data.password);
 
-        const accessAttrs = buildCookieAttributes(30 * 24 * 60 * 60);
-        const refreshAttrs = buildCookieAttributes(6 * 30 * 24 * 60 * 60);
+        const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60);
+        const refreshAttrs = buildCookieAttributes(c, 6 * 30 * 24 * 60 * 60);
 
         c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
         c.header(
@@ -145,8 +148,8 @@ export class StoreOwnerController {
         password,
       );
 
-      const accessAttrs = buildCookieAttributes(30 * 24 * 60 * 60); // 30 days
-      const refreshAttrs = buildCookieAttributes(6 * 30 * 24 * 60 * 60); // 180 days
+      const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60); // 30 days
+      const refreshAttrs = buildCookieAttributes(c, 6 * 30 * 24 * 60 * 60); // 180 days
 
       c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
       c.header("Set-Cookie", `refreshToken=${refreshToken}; ${refreshAttrs}`, {
@@ -176,7 +179,7 @@ export class StoreOwnerController {
       const { accessToken, user } =
         await storeOwnerService.refresh(refreshToken);
 
-      const accessAttrs = buildCookieAttributes(30 * 24 * 60 * 60);
+      const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60);
       c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
 
       return c.json({ success: true, data: user }, 200);
@@ -192,7 +195,7 @@ export class StoreOwnerController {
       await storeOwnerService.logout(user.id);
 
       // Clear cookies by setting Max-Age=0
-      const clearAttrs = buildCookieAttributes(0);
+      const clearAttrs = buildCookieAttributes(c, 0);
 
       c.header("Set-Cookie", `accessToken=; ${clearAttrs}`);
       c.header("Set-Cookie", `refreshToken=; ${clearAttrs}`, {
