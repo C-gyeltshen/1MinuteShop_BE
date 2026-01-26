@@ -176,6 +176,10 @@ export class StoreOwnerController {
       // Cookie expiry times (30 days for access, 180 days for refresh)
       const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60); // 30 days
       const refreshAttrs = buildCookieAttributes(c, 180 * 24 * 60 * 60); // 180 days
+      
+      console.log("Access Cookie Attributes:", accessAttrs);
+      console.log("Refresh Cookie Attributes:", refreshAttrs);
+      console.log("Origin:", c.req.header("origin"));
 
       c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
       c.header("Set-Cookie", `refreshToken=${refreshToken}; ${refreshAttrs}`, {
