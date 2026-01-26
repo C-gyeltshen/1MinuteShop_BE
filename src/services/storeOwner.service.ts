@@ -277,10 +277,39 @@ export class StoreOwnerService {
   }
 
   verifyAccessToken(token: string): TokenPayload | null {
-    try {
-      return jwt.verify(token, JWT_SECRET) as TokenPayload;
-    } catch {
+  try {
+    console.log("[JWT VERIFY] Starting JWT verification");
+    console.log(`[JWT VERIFY] Token preview: ${token.substring(0, 30)}...${token.substring(token.length - 20)}`);
+    console.log(`[JWT VERIFY] Token length: ${token.length}`);
+    console.log(`[JWT VERIFY] JWT_SECRET available: ${process.env.JWT_SECRET ? "✓ YES" : "✗ NO"}`);
+    
+    if (!process.env.JWT_SECRET) {
+      console.log("[JWT VERIFY] ERROR: JWT_SECRET is not set!");
       return null;
     }
+    
+    console.log(`[JWT VERIFY] JWT_SECRET length: ${process.env.JWT_SECRET.length}`);
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET) as TokenPayload;
+    
+    console.log("[JWT VERIFY] ✓ Token verified successfully");
+    console.log(`[JWT VERIFY] Decoded payload:`, {
+      id: decoded.id,
+      storeName: decoded.storeName,
+      email: decoded.email,
+    });
+    
+    return decoded;
+  } catch (error) {
+    console.log("[JWT VERIFY] ✗ Verification failed");
+    if (error instanceof jwt.JsonWebTokenError) {
+      console.log(`[JWT VERIFY] JWT Error: ${error.message}`);
+    } else if (error instanceof jwt.TokenExpiredError) {
+      console.log(`[JWT VERIFY] Token expired at: ${error.expiredAt}`);
+    } else {
+      console.log(`[JWT VERIFY] Error:`, error instanceof Error ? error.message : String(error));
+    }
+    return null;
   }
+}
 }
