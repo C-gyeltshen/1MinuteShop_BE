@@ -57,15 +57,10 @@ export class StoreOwnerRepository {
             where: { id },
         });
     }
-    async findSubDomain(storeSubdomain) {
-        return await prisma.storeOwner.findUnique({
-            where: { storeSubdomain }
-        });
-    }
     ///////login
     async findByEmailWithPassword(email) {
         if (!email) {
-            throw new Error("Phone number is required");
+            throw new Error("Email number is required");
         }
         const useremail = email;
         console.log("email : ", email);
@@ -138,6 +133,12 @@ export class StoreOwnerRepository {
         return await prisma.refreshToken.updateMany({
             where: { storeOwnerId },
             data: { revoked: true },
+        });
+    }
+    // others
+    async findSubDomain(storeSubdomain) {
+        return await prisma.storeOwner.findUnique({
+            where: { storeSubdomain }
         });
     }
 }

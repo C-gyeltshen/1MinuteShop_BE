@@ -8,13 +8,15 @@ const storeOwnerService = new StoreOwnerService();
 function buildCookieAttributes(c: Context, maxAgeSeconds: number) {
   const fullUrl = c.req.url;
   console.log(`[COOKIE DEBUG] Full request URL: ${fullUrl}`);
-  
-  // Check if request is HTTPS by looking at the full URL or x-forwarded-proto header
+
+  // Get the host header (this is the domain the request came to)
+  const hostHeader = c.req.header("host");
+  console.log(`[COOKIE DEBUG] Host header: ${hostHeader}`);
+
+  // Check if request is HTTPS via x-forwarded-proto (set by Render)
   const xForwardedProto = c.req.header("x-forwarded-proto");
-  console.log(`[COOKIE DEBUG] x-forwarded-proto header: ${xForwardedProto}`);
-  
-  const isHttps = fullUrl.startsWith("https://") || xForwardedProto === "https";
-  console.log(`[COOKIE DEBUG] Is HTTPS: ${isHttps}`);
+  const isHttps = xForwardedProto === "https";
+  console.log(`[COOKIE DEBUG] Is HTTPS (via x-forwarded-proto): ${isHttps}`);
 
   const origin = c.req.header("origin");
   console.log(`[COOKIE DEBUG] Origin header: ${origin || "undefined"}`);
@@ -23,15 +25,16 @@ function buildCookieAttributes(c: Context, maxAgeSeconds: number) {
 
   if (origin) {
     try {
-      // For cross-origin detection, use origin + x-forwarded-proto for accuracy
-      const protocol = xForwardedProto || (isHttps ? "https" : "http");
-      const backendOrigin = `${protocol}://${c.req.header("host")}`;
+      const protocol = xForwardedProto || "https";
+      const backendOrigin = `${protocol}://${hostHeader}`;
       isCrossSite = origin !== backendOrigin;
       console.log(
-        `[COOKIE DEBUG] Comparing origins - Frontend: ${origin}, Backend: ${backendOrigin}, IsCrossSite: ${isCrossSite}`
+        `[COOKIE DEBUG] Frontend: ${origin}, Backend: ${backendOrigin}, IsCrossSite: ${isCrossSite}`,
       );
     } catch (e) {
-      console.log("[COOKIE DEBUG] Error comparing origins, assuming cross-site");
+      console.log(
+        "[COOKIE DEBUG] Error comparing origins, assuming cross-site",
+      );
       isCrossSite = true;
     }
   } else {
@@ -41,9 +44,13 @@ function buildCookieAttributes(c: Context, maxAgeSeconds: number) {
 
   // Use SameSite=None when HTTPS AND cross-site
   const sameSite = isHttps && isCrossSite ? "None" : "Lax";
-  const secure = isHttps ? "Secure; " : "";
+  const secure = isHttps ? "Secure" : "";
 
-  const attrs = `HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=${maxAgeSeconds}`;
+  // CRITICAL: Add Domain attribute so cookie is sent on cross-origin requests
+  // For onrender.com domain, use ".onrender.com" to allow all *.onrender.com
+  const domain = hostHeader ? `Domain=${hostHeader}` : "";
+
+  const attrs = `${domain}; Path=/; HttpOnly; ${secure}; SameSite=${sameSite}; Max-Age=${maxAgeSeconds}`;
   console.log(`[COOKIE DEBUG] Final attributes: ${attrs}`);
 
   return attrs;
@@ -58,27 +65,26 @@ export class StoreOwnerController {
         status: StoreOwnerStatus.ACTIVE,
       });
 
-      // Auto-login after successful registration
       try {
         const { accessToken, refreshToken, user } =
           await storeOwnerService.login(data.email, data.password);
 
-        const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60); // 30 days
-        const refreshAttrs = buildCookieAttributes(c, 6 * 30 * 24 * 60 * 60); // 180 days
+        const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60);
+        const refreshAttrs = buildCookieAttributes(c, 6 * 30 * 24 * 60 * 60);
 
-        // Set HttpOnly cookies
         c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
-
         c.header(
           "Set-Cookie",
           `refreshToken=${refreshToken}; ${refreshAttrs}`,
-          { append: true },
+          {
+            append: true,
+          },
         );
 
+        console.log("[REGISTER] Auto-login cookies set successfully");
         return c.json({ success: true, data: user }, 201);
       } catch (loginError: any) {
         console.error("Auto-login failed after registration:", loginError);
-        // Registration succeeded but auto-login failed, return user data anyway
         return c.json(
           {
             success: true,
@@ -186,12 +192,19 @@ export class StoreOwnerController {
       const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60); // 30 days
       const refreshAttrs = buildCookieAttributes(c, 6 * 30 * 24 * 60 * 60); // 180 days
 
-      // Set HttpOnly cookies
+      // Set HttpOnly cookies with all required attributes
       c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
-
       c.header("Set-Cookie", `refreshToken=${refreshToken}; ${refreshAttrs}`, {
         append: true,
       });
+
+      console.log("[LOGIN] Cookies set successfully");
+      console.log(
+        `[LOGIN] accessToken Set-Cookie: accessToken=${accessToken.substring(0, 20)}...; ${accessAttrs}`,
+      );
+      console.log(
+        `[LOGIN] refreshToken Set-Cookie: refreshToken=${refreshToken.substring(0, 20)}...; ${refreshAttrs}`,
+      );
 
       return c.json({ success: true, data: user }, 200);
     } catch (error: any) {

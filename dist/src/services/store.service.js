@@ -2,7 +2,7 @@ import { StoreRepository } from "../repositories/store.repository.js";
 const storeRepository = new StoreRepository();
 export class StoreService {
     async CheckSubDomain(subDomain) {
-        const validate = storeRepository.findBySubDomain(subDomain);
+        const validate = await storeRepository.findBySubDomain(subDomain);
         if (!validate) {
             throw {
                 statusCode: 404,
