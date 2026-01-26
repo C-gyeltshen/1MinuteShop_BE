@@ -35,39 +35,26 @@ const getAllowedOrigins = () => {
 app.use(
   "*",
   cors({
-    // origin: getAllowedOrigins(),
-    origin: (origin) => {
-      // If no origin (like a server-to-server call), allow it or return a default
-      if (!origin) return "https://www.laso.la";
-
-      const isLaso =
-        origin.endsWith(".laso.la") || origin === "https://laso.la";
-      const isLocal = origin.includes("localhost");
-
-      return isLaso || isLocal ? origin : null;
-    },
+    origin: getAllowedOrigins(),
     credentials: true, // ✓ Required for cookies
     allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     exposeHeaders: ["Content-Length", "Set-Cookie"],
     maxAge: 600,
-  }),
+  })
 );
 
 app.use("*", logger());
 
 app.use("*", async (c, next) => {
   console.log(`${c.req.method} ${c.req.path}`);
-  console.log("Origin:", c.req.header("origin"));
-
+  console.log("Request Origin:", c.req.header("origin"));
+  
   // Debug: Log cookies being received
   const accessToken = getCookie(c, "accessToken");
   const refreshToken = getCookie(c, "refreshToken");
-  console.log("Received cookies:", {
-    accessToken: !!accessToken,
-    refreshToken: !!refreshToken,
-  });
-
+  console.log("Received cookies:", { accessToken: !!accessToken, refreshToken: !!refreshToken });
+  
   await next();
 });
 
