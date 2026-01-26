@@ -76,7 +76,7 @@ export class StoreOwnerRepository {
   ///////login
   async findByEmailWithPassword(email: string) {
     if (!email) {
-      throw new Error("Email number is required");
+      throw new Error("Phone number is required");
     }
 
     const useremail = email;
@@ -177,4 +177,3 @@ export class StoreOwnerRepository {
   //   })
   // }
 }
-
