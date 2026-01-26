@@ -8,23 +8,36 @@ const storeOwnerService = new StoreOwnerService();
 function buildCookieAttributes(c: Context, maxAgeSeconds: number) {
   const reqUrl = new URL(c.req.url);
   const origin = c.req.header("origin");
-  const isHttps =
-    reqUrl.protocol === "https:" ||
-    (origin ? origin.startsWith("https://") : false);
-  // Determine cross-site by comparing origins (scheme+host+port)
+  const isHttps = reqUrl.protocol === "https:";
+
   let isCrossSite = false;
-  try {
-    if (origin) {
+
+  if (origin) {
+    try {
       const backendOrigin = `${reqUrl.protocol}//${reqUrl.host}`;
       isCrossSite = origin !== backendOrigin;
+      console.log(
+        `[COOKIE] Origin detected: ${origin}, Backend: ${backendOrigin}, IsCrossSite: ${isCrossSite}`,
+      );
+    } catch (e) {
+      console.log("[COOKIE] Error comparing origins");
+      isCrossSite = false;
     }
-  } catch {
-    isCrossSite = false;
+  } else {
+    // No origin header - assume cross-site for safety (this is the key fix!)
+    // Most browsers will send origin header, so if missing, better to be permissive
+    isCrossSite = true;
+    console.log("[COOKIE] No origin header - assuming cross-site");
   }
-  // SameSite strategy: use None only when cross-site over HTTPS; else Lax
+
+  // SameSite strategy: use None ONLY when cross-site AND HTTPS
   const sameSite = isCrossSite && isHttps ? "None" : "Lax";
   const secure = isHttps ? "Secure; " : "";
-  return `HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=${maxAgeSeconds}`;
+
+  const attrs = `HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=${maxAgeSeconds}`;
+  console.log(`[COOKIE] Attributes: ${attrs}`);
+
+  return attrs;
 }
 
 export class StoreOwnerController {
@@ -50,7 +63,7 @@ export class StoreOwnerController {
         c.header(
           "Set-Cookie",
           `refreshToken=${refreshToken}; ${refreshAttrs}`,
-          { append: true }
+          { append: true },
         );
 
         return c.json({ success: true, data: user }, 201);
@@ -64,13 +77,13 @@ export class StoreOwnerController {
             warning:
               "Registration successful but auto-login failed. Please login manually.",
           },
-          201
+          201,
         );
       }
     } catch (error: any) {
       return c.json(
         { success: false, error: error?.message || "Registration failed" },
-        400
+        400,
       );
     }
   }
@@ -90,7 +103,7 @@ export class StoreOwnerController {
           success: false,
           error: error?.message || "Error fetching store owner",
         },
-        400
+        400,
       );
     }
   }
@@ -105,7 +118,7 @@ export class StoreOwnerController {
     } catch (error: any) {
       return c.json(
         { success: false, error: error?.message || "Update failed" },
-        400
+        400,
       );
     }
   }
@@ -119,31 +132,34 @@ export class StoreOwnerController {
     } catch (error: any) {
       return c.json(
         { success: false, error: error?.message || "Delete failed" },
-        400
+        400,
       );
     }
   }
 
-async subDomain(c: Context) {
-  try {
-    // Get subdomain from request body
-    const { subDomain } = await c.req.json();
+  async subDomain(c: Context) {
+    try {
+      // Get subdomain from request body
+      const { subDomain } = await c.req.json();
 
-    if (!subDomain) {
-      return c.json({ success: false, error: "Subdomain is required" }, 400);
+      if (!subDomain) {
+        return c.json({ success: false, error: "Subdomain is required" }, 400);
+      }
+
+      // Verify subdomain existence using the service
+      const result = await storeOwnerService.verifyStoreSubDomain(subDomain);
+
+      return c.json({ success: true, data: result }, 200);
+    } catch (error: any) {
+      return c.json(
+        {
+          success: false,
+          error: error?.message || "Error verifying subdomain",
+        },
+        400,
+      );
     }
-
-    // Verify subdomain existence using the service
-    const result = await storeOwnerService.verifyStoreSubDomain(subDomain);
-
-    return c.json({ success: true, data: result }, 200);
-  } catch (error: any) {
-    return c.json(
-      { success: false, error: error?.message || "Error verifying subdomain" },
-      400
-    );
   }
-}
 
   // Login
   async login(c: Context) {
@@ -155,7 +171,7 @@ async subDomain(c: Context) {
 
       const { accessToken, refreshToken, user } = await storeOwnerService.login(
         email,
-        password
+        password,
       );
 
       const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60); // 30 days
@@ -184,9 +200,8 @@ async subDomain(c: Context) {
         return c.json({ success: false, error: "No refresh token" }, 401);
       }
 
-      const { accessToken, user } = await storeOwnerService.refresh(
-        refreshToken
-      );
+      const { accessToken, user } =
+        await storeOwnerService.refresh(refreshToken);
 
       // Set new access token cookie
       const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60);
@@ -250,7 +265,7 @@ async subDomain(c: Context) {
   // Helper: Extract cookie from header
   private extractCookie(
     cookieHeader: string | undefined,
-    name: string
+    name: string,
   ): string | null {
     if (!cookieHeader) return null;
 
