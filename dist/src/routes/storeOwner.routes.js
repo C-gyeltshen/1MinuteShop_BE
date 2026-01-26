@@ -17,4 +17,6 @@ storeOwnerRoutes.post("/logout", authMiddleware, (c) => controller.logout(c));
 storeOwnerRoutes.get("/me", authMiddleware, (c) => controller.getProfile(c));
 // GET /api/store-ownerxs/:id - Get store owner by ID (public)
 storeOwnerRoutes.get("/:id", (c) => controller.getProfileById(c));
+// In routes file
+storeOwnerRoutes.post("/verify-subdomain", (c) => controller.subDomain(c));
 export default storeOwnerRoutes;

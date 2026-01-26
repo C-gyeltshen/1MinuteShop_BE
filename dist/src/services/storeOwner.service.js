@@ -5,9 +5,9 @@ const storeOwnerRepository = new StoreOwnerRepository();
 // Environment Variables
 const JWT_SECRET = process.env.JWT_SECRET || "changeme";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "refresh_secret";
-// 1 Month = 30 days | 6 Months = 180 days
-const ACCESS_TOKEN_EXPIRY = "30d";
-const REFRESH_TOKEN_EXPIRY = "180d";
+// Token expiry times
+const ACCESS_TOKEN_EXPIRY = "30d"; // 30 days for access token
+const REFRESH_TOKEN_EXPIRY = "180d"; // 6 months for refresh token
 // Milliseconds for Database Timestamps
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
 const ONE_MONTH_MS = 30 * MS_IN_DAY;
@@ -16,31 +16,32 @@ export class StoreOwnerService {
     async register(data) {
         const existingEmail = await storeOwnerRepository.findByEmail(data.email);
         if (existingEmail) {
-            throw new Error("Email already exist, please try with new Email");
+            throw new Error("Email already exists, please try with a new email");
         }
         const existingStoreName = await storeOwnerRepository.findByStoreName(data.storeName);
         if (existingStoreName) {
-            throw new Error("Store Name taken try another name");
+            throw new Error("Store name taken, try another name");
         }
         const password = await bcrypt.hash(data.password, 10);
         const owner = await storeOwnerRepository.create({ ...data, password });
         if (!owner) {
-            throw new Error("Failed to create Store Owner data");
+            throw new Error("Failed to create store owner data");
         }
-        // Generate or assign the subdomain value here
+        // Generate subdomain and URL
         const subDomain = `${owner.storeName.replace(/\s+/g, "").toLowerCase()}`;
         const subDomainUrl = `https://${subDomain}.laso.la`;
         // Update the store subdomain in the database
         await storeOwnerRepository.updateStoreSubDomain(owner.id, subDomain);
         await storeOwnerRepository.updateStoreUrl(owner.id, subDomainUrl);
+        // FIXED: Correct field mapping
         return {
             id: owner.id,
             storeName: owner.storeName,
             ownerName: owner.ownerName,
             email: owner.email,
             status: owner.status,
-            storeSubdomain: subDomainUrl,
-            storeUrl: subDomain
+            storeSubdomain: subDomain,
+            storeUrl: subDomainUrl
         };
     }
     async getById(id) {
@@ -54,10 +55,11 @@ export class StoreOwnerService {
             ownerName: owner.ownerName,
             email: owner.email,
             status: owner.status,
+            storeSubdomain: owner.storeSubdomain,
+            storeUrl: owner.storeUrl
         };
     }
     async update(id, data) {
-        // If password is being updated, hash it
         if (data.password) {
             data.password = await bcrypt.hash(data.password, 10);
         }
@@ -71,6 +73,7 @@ export class StoreOwnerService {
             ownerName: updatedOwner.ownerName,
             email: updatedOwner.email,
             status: updatedOwner.status,
+            storeSubdomain: updatedOwner.storeSubdomain,
         };
     }
     async delete(id) {
@@ -82,14 +85,24 @@ export class StoreOwnerService {
     }
     async getAll() {
         const allStoreData = await storeOwnerRepository.findAll();
+        return allStoreData;
     }
+    // FIXED: Correct logic for subdomain verification
     async verifyStoreSubDomain(storeSubDomain) {
         const subDomain = await storeOwnerRepository.findSubDomain(storeSubDomain);
-        if (subDomain)
-            throw new Error("Subdomain do not exist");
-        return { "subDomain": subDomain };
+        if (!subDomain) {
+            throw new Error("Subdomain does not exist");
+        }
+        return {
+            exists: true,
+            storeOwner: {
+                id: subDomain.id,
+                storeName: subDomain.storeName,
+                storeSubdomain: subDomain.storeSubdomain,
+                storeUrl: subDomain.storeUrl
+            }
+        };
     }
-    /////////login
     async login(email, password) {
         const owner = await storeOwnerRepository.findByEmailWithPassword(email);
         if (!owner)
@@ -98,7 +111,7 @@ export class StoreOwnerService {
         if (!valid)
             throw new Error("Invalid credentials");
         await storeOwnerRepository.setLastLogin(owner.id, new Date());
-        // 1. Generate JWTs
+        // Generate JWTs
         const accessToken = this.generateAccessToken({
             id: owner.id,
             storeName: owner.storeName,
@@ -111,12 +124,11 @@ export class StoreOwnerService {
             email: owner.email,
             storeSubdomain: owner.storeSubdomain,
         });
-        // 2. Calculate Expiry Dates for DB
+        // Token expiry times
         const accessExpiresAt = new Date(Date.now() + ONE_MONTH_MS);
         const refreshExpiresAt = new Date(Date.now() + SIX_MONTHS_MS);
-        // 3. Save Refresh Token to DB
+        // Save tokens to DB
         const refreshTokenRecord = await storeOwnerRepository.saveRefreshToken(owner.id, refreshToken, refreshExpiresAt);
-        // 4. Save Access Token linked to the Refresh Token session
         await storeOwnerRepository.saveAccessToken(owner.id, refreshTokenRecord.id, accessToken, accessExpiresAt);
         return {
             accessToken,
@@ -146,10 +158,9 @@ export class StoreOwnerService {
                 email: owner.email,
                 storeSubdomain: owner.storeSubdomain
             });
-            // Update the access token record in DB for the new token
+            // Update access token expiry
             const accessExpiresAt = new Date(Date.now() + ONE_MONTH_MS);
-            await storeOwnerRepository.saveAccessToken(owner.id, isValid.id, // Linked to existing refresh token ID
-            newAccessToken, accessExpiresAt);
+            await storeOwnerRepository.saveAccessToken(owner.id, isValid.id, newAccessToken, accessExpiresAt);
             return {
                 accessToken: newAccessToken,
                 user: {
@@ -162,13 +173,11 @@ export class StoreOwnerService {
             };
         }
         catch (error) {
-            // If it's an error we threw manually, just re-throw it
             if (error instanceof Error &&
                 (error.message === "Token revoked or invalid" ||
                     error.message === "User inactive")) {
                 throw error;
             }
-            // Otherwise, log the unexpected system error and throw a generic one
             console.error("JWT Refresh System Error:", error);
             throw new Error("Invalid refresh token", { cause: error });
         }
@@ -187,6 +196,7 @@ export class StoreOwnerService {
             ownerName: owner.ownerName,
             email: owner.email,
             storeSubdomain: owner.storeSubdomain,
+            storeUrl: owner.storeUrl,
             createdAt: owner.createdAt,
         };
     }
