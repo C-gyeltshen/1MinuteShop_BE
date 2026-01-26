@@ -13,6 +13,14 @@ const storeOwnerRepository = new StoreOwnerRepository();
 const JWT_SECRET = process.env.JWT_SECRET || "changeme";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "refresh_secret";
 
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is not set");
+}
+
+if (!JWT_REFRESH_SECRET) {
+  throw new Error("JWT_REFRESH_SECRET environment variable is not set");
+}
+
 // 1 Month = 30 days | 6 Months = 180 days
 const ACCESS_TOKEN_EXPIRY = "30d";
 const REFRESH_TOKEN_EXPIRY = "180d";

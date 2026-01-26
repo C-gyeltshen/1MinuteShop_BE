@@ -5,18 +5,15 @@ import { StoreOwnerService } from "../services/storeOwner.service.js";
 const storeOwnerService = new StoreOwnerService();
 
 export const authMiddleware = async (c: Context, next: Next) => {
+  console.log("\n========== AUTH MIDDLEWARE DEBUG ==========");
   
   let token: string | undefined;
-
   const authHeader = c.req.header("Authorization");
-  console.log("auth header", authHeader)
+  
   if (authHeader?.startsWith("Bearer ")) {
     token = authHeader.slice(7);
-    console.log("auth tokeen from header", token)
   } else {
-    // Try to get token from cookies
     const cookieHeader = c.req.header("Cookie");
-    console.log("auth token from cookies", cookieHeader)
     if (cookieHeader) {
       const cookies = Object.fromEntries(
         cookieHeader.split(";").map((cookie) => {
@@ -27,16 +24,30 @@ export const authMiddleware = async (c: Context, next: Next) => {
       token = cookies["accessToken"];
     }
   }
-  console.log("token from routes", token)
-  if (!token) {
-    return c.json({ error: "Unauthorized from routes" }, 401);
+
+  console.log("[TOKEN] Received token:", token ? "✓ yes" : "✗ no");
+  if (token) {
+    console.log("[TOKEN] First 50 chars:", token.substring(0, 50));
+    console.log("[TOKEN] Length:", token.length);
   }
 
+  if (!token) {
+    return c.json({ error: "Unauthorized - no token" }, 401);
+  }
+
+  console.log("[VERIFY] Attempting to verify token...");
   const decoded = storeOwnerService.verifyAccessToken(token);
+  
   if (!decoded) {
+    console.log("[VERIFY] ✗ Token verification failed");
+    console.log("[VERIFY] JWT_SECRET available:", !!process.env.JWT_SECRET);
+    console.log("[VERIFY] JWT_SECRET length:", process.env.JWT_SECRET?.length || 0);
+    console.log("=========================================\n");
     return c.json({ error: "Invalid token" }, 401);
   }
 
+  console.log("[VERIFY] ✓ Token valid - User:", decoded.id);
+  console.log("=========================================\n");
   c.set("user", decoded);
   await next();
 };
