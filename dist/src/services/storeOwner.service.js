@@ -1,6 +1,6 @@
 import { StoreOwnerRepository } from "../repositories/storeOwner.repository.js";
 import bcrypt from "bcrypt";
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
 const storeOwnerRepository = new StoreOwnerRepository();
 // Environment Variables
 const JWT_SECRET = process.env.JWT_SECRET || "changeme";
@@ -46,7 +46,7 @@ export class StoreOwnerService {
             email: owner.email,
             status: owner.status,
             storeSubdomain: subDomainUrl,
-            storeUrl: subDomain
+            storeUrl: subDomain,
         };
     }
     async getById(id) {
@@ -93,7 +93,7 @@ export class StoreOwnerService {
         const subDomain = await storeOwnerRepository.findSubDomain(storeSubDomain);
         if (subDomain)
             throw new Error("Subdomain do not exist");
-        return { "subDomain": subDomain };
+        return { subDomain: subDomain };
     }
     /////////login
     async login(email, password) {
@@ -150,7 +150,7 @@ export class StoreOwnerService {
                 id: owner.id,
                 storeName: owner.storeName,
                 email: owner.email,
-                storeSubdomain: owner.storeSubdomain
+                storeSubdomain: owner.storeSubdomain,
             });
             // Update the access token record in DB for the new token
             const accessExpiresAt = new Date(Date.now() + ONE_MONTH_MS);
