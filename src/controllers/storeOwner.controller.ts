@@ -9,16 +9,18 @@ function buildCookieAttributes(c: Context, maxAgeSeconds: number) {
   const reqUrl = new URL(c.req.url);
   const origin = c.req.header("origin");
 
-  // Always use HTTPS in production
+  // Always detect as production if on Render
   const isProduction =
     process.env.NODE_ENV === "production" ||
     reqUrl.host.includes("onrender.com");
 
+  // Always HTTPS in production
   const isHttps =
     isProduction ||
     reqUrl.protocol === "https:" ||
     (origin ? origin.startsWith("https://") : false);
 
+  // Determine if cross-site
   let isCrossSite = false;
   try {
     if (origin) {
@@ -29,8 +31,12 @@ function buildCookieAttributes(c: Context, maxAgeSeconds: number) {
     isCrossSite = false;
   }
 
+  // CRITICAL: For production cross-origin, MUST use SameSite=None
+  // The backend (onrender.com) and frontend (laso.la) are different domains
   const sameSite = isCrossSite && isHttps ? "None" : "Lax";
-  const secure = isHttps ? "Secure; " : "";
+
+  // MUST have Secure when SameSite=None
+  const secure = sameSite === "None" || isHttps ? "Secure; " : "";
 
   return `HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=${maxAgeSeconds}`;
 }
