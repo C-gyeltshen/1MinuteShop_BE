@@ -6,39 +6,22 @@ import { StoreOwnerStatus } from "../types/storeOwner.types.js";
 const storeOwnerService = new StoreOwnerService();
 
 function buildCookieAttributes(c: Context, maxAgeSeconds: number) {
-  const reqUrl = new URL(c.req.url);
   const origin = c.req.header("origin");
+  const isProduction = process.env.NODE_ENV === "production" || c.req.url.includes("onrender.com");
 
-  // Always detect as production if on Render
-  const isProduction =
-    process.env.NODE_ENV === "production" ||
-    reqUrl.host.includes("onrender.com");
+  // 1. Determine SameSite and Secure
+  // If we are in production, we MUST use SameSite=None for cross-site cookie sharing
+  const sameSite = isProduction ? "None" : "Lax";
+  const secure = isProduction ? "Secure; " : "";
 
-  // Always HTTPS in production
-  const isHttps =
-    isProduction ||
-    reqUrl.protocol === "https:" ||
-    (origin ? origin.startsWith("https://") : false);
-
-  // Determine if cross-site
-  let isCrossSite = false;
-  try {
-    if (origin) {
-      const backendOrigin = `${reqUrl.protocol}//${reqUrl.host}`;
-      isCrossSite = origin !== backendOrigin;
-    }
-  } catch {
-    isCrossSite = false;
+  // 2. Handle Domain Scope
+  // This allows the cookie to be sent to laso.la AND *.laso.la
+  let domainAttribute = "";
+  if (origin && origin.includes("laso.la")) {
+    domainAttribute = "Domain=.laso.la; "; // Note the leading dot
   }
 
-  // CRITICAL: For production cross-origin, MUST use SameSite=None
-  // The backend (onrender.com) and frontend (laso.la) are different domains
-  const sameSite = isCrossSite && isHttps ? "None" : "Lax";
-
-  // MUST have Secure when SameSite=None
-  const secure = sameSite === "None" || isHttps ? "Secure; " : "";
-
-  return `HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=${maxAgeSeconds}`;
+  return `HttpOnly; ${secure}${domainAttribute}SameSite=${sameSite}; Path=/; Max-Age=${maxAgeSeconds}`;
 }
 
 export class StoreOwnerController {
