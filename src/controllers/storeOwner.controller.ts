@@ -6,11 +6,50 @@ import { StoreOwnerStatus } from "../types/storeOwner.types.js";
 const storeOwnerService = new StoreOwnerService();
 
 // Set cookies with SameSite=None (no explicit Domain - let browser handle it)
-function buildCookieAttributes(maxAgeSeconds: number): string {
-  const attrs = `Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${maxAgeSeconds}`;
-  console.log(`[COOKIE] Set-Cookie attributes: ${attrs}`);
+function buildCookieAttributes(c: Context, maxAgeSeconds: number) {
+  const fullUrl = c.req.url;
+  console.log(`[COOKIE DEBUG] Full request URL: ${fullUrl}`);
+  
+  // Check if request is HTTPS by looking at the full URL or x-forwarded-proto header
+  const xForwardedProto = c.req.header("x-forwarded-proto");
+  console.log(`[COOKIE DEBUG] x-forwarded-proto header: ${xForwardedProto}`);
+  
+  const isHttps = fullUrl.startsWith("https://") || xForwardedProto === "https";
+  console.log(`[COOKIE DEBUG] Is HTTPS: ${isHttps}`);
+
+  const origin = c.req.header("origin");
+  console.log(`[COOKIE DEBUG] Origin header: ${origin || "undefined"}`);
+
+  let isCrossSite = false;
+
+  if (origin) {
+    try {
+      // For cross-origin detection, use origin + x-forwarded-proto for accuracy
+      const protocol = xForwardedProto || (isHttps ? "https" : "http");
+      const backendOrigin = `${protocol}://${c.req.header("host")}`;
+      isCrossSite = origin !== backendOrigin;
+      console.log(
+        `[COOKIE DEBUG] Comparing origins - Frontend: ${origin}, Backend: ${backendOrigin}, IsCrossSite: ${isCrossSite}`
+      );
+    } catch (e) {
+      console.log("[COOKIE DEBUG] Error comparing origins, assuming cross-site");
+      isCrossSite = true;
+    }
+  } else {
+    isCrossSite = true;
+    console.log("[COOKIE DEBUG] No origin header - assuming cross-site");
+  }
+
+  // Use SameSite=None when HTTPS AND cross-site
+  const sameSite = isHttps && isCrossSite ? "None" : "Lax";
+  const secure = isHttps ? "Secure; " : "";
+
+  const attrs = `HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=${maxAgeSeconds}`;
+  console.log(`[COOKIE DEBUG] Final attributes: ${attrs}`);
+
   return attrs;
 }
+
 
 export class StoreOwnerController {
   async register(c: Context) {
@@ -25,8 +64,8 @@ export class StoreOwnerController {
         const { accessToken, refreshToken, user } =
           await storeOwnerService.login(data.email, data.password);
 
-        const accessAttrs = buildCookieAttributes(30 * 24 * 60 * 60);
-        const refreshAttrs = buildCookieAttributes(6 * 30 * 24 * 60 * 60);
+        const accessAttrs = buildCookieAttributes(c,30 * 24 * 60 * 60);
+        const refreshAttrs = buildCookieAttributes(c,6 * 30 * 24 * 60 * 60);
 
         c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
         c.header(
@@ -145,8 +184,8 @@ export class StoreOwnerController {
         password,
       );
 
-      const accessAttrs = buildCookieAttributes(30 * 24 * 60 * 60); // 30 days
-      const refreshAttrs = buildCookieAttributes(6 * 30 * 24 * 60 * 60); // 180 days
+      const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60); // 30 days
+      const refreshAttrs = buildCookieAttributes(c, 6 * 30 * 24 * 60 * 60); // 180 days
 
       c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
       c.header("Set-Cookie", `refreshToken=${refreshToken}; ${refreshAttrs}`, {
@@ -176,7 +215,7 @@ export class StoreOwnerController {
       const { accessToken, user } =
         await storeOwnerService.refresh(refreshToken);
 
-      const accessAttrs = buildCookieAttributes(30 * 24 * 60 * 60);
+      const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60);
       c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
 
       return c.json({ success: true, data: user }, 200);
@@ -192,7 +231,7 @@ export class StoreOwnerController {
       await storeOwnerService.logout(user.id);
 
       // Clear cookies by setting Max-Age=0
-      const clearAttrs = buildCookieAttributes(0);
+      const clearAttrs = buildCookieAttributes(c, 0);
 
       c.header("Set-Cookie", `accessToken=; ${clearAttrs}`);
       c.header("Set-Cookie", `refreshToken=; ${clearAttrs}`, {
