@@ -4,21 +4,14 @@ import type {
   UpdateStoreOwnerInput,
 } from "../types/storeOwner.types.js";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
+
 
 const storeOwnerRepository = new StoreOwnerRepository();
 
 // Environment Variables
 const JWT_SECRET = process.env.JWT_SECRET || "changeme";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "refresh_secret";
-
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET environment variable is not set");
-}
-
-if (!JWT_REFRESH_SECRET) {
-  throw new Error("JWT_REFRESH_SECRET environment variable is not set");
-}
 
 // 1 Month = 30 days | 6 Months = 180 days
 const ACCESS_TOKEN_EXPIRY = "30d";
@@ -44,7 +37,7 @@ export class StoreOwnerService {
     }
 
     const existingStoreName = await storeOwnerRepository.findByStoreName(
-      data.storeName,
+      data.storeName
     );
     if (existingStoreName) {
       throw new Error("Store Name taken try another name");
@@ -64,6 +57,7 @@ export class StoreOwnerService {
     await storeOwnerRepository.updateStoreSubDomain(owner.id, subDomain);
     await storeOwnerRepository.updateStoreUrl(owner.id, subDomainUrl);
 
+
     return {
       id: owner.id,
       storeName: owner.storeName,
@@ -71,7 +65,7 @@ export class StoreOwnerService {
       email: owner.email,
       status: owner.status,
       storeSubdomain: subDomainUrl,
-      storeUrl: subDomain,
+      storeUrl: subDomain
     };
   }
   async getById(id: string) {
@@ -114,19 +108,22 @@ export class StoreOwnerService {
     return { success: true };
   }
 
-  async getAll() {
-    const allStoreData = await storeOwnerRepository.findAll();
+  async getAll(){
+    const allStoreData = await storeOwnerRepository.findAll()
   }
-
-  async verifyStoreSubDomain(storeSubDomain: string) {
+  
+  async verifyStoreSubDomain(storeSubDomain: string){
     const subDomain = await storeOwnerRepository.findSubDomain(storeSubDomain);
-    if (subDomain!) throw new Error("Subdomain do not exist");
-    return { subDomain: subDomain };
+    if (subDomain!) throw new Error("Subdomain do not exist")
+    return {"subDomain": subDomain}
+    
   }
 
   /////////login
   async login(email: string, password: string) {
-    const owner = await storeOwnerRepository.findByEmailWithPassword(email);
+    const owner = await storeOwnerRepository.findByEmailWithPassword(
+      email
+    );
     if (!owner) throw new Error("Invalid credentials");
 
     const valid = await bcrypt.compare(password, owner.password);
@@ -157,7 +154,7 @@ export class StoreOwnerService {
     const refreshTokenRecord = await storeOwnerRepository.saveRefreshToken(
       owner.id,
       refreshToken,
-      refreshExpiresAt,
+      refreshExpiresAt
     );
 
     // 4. Save Access Token linked to the Refresh Token session
@@ -165,7 +162,7 @@ export class StoreOwnerService {
       owner.id,
       refreshTokenRecord.id,
       accessToken,
-      accessExpiresAt,
+      accessExpiresAt
     );
 
     return {
@@ -184,13 +181,13 @@ export class StoreOwnerService {
     try {
       const decoded = jwt.verify(
         refreshToken,
-        JWT_REFRESH_SECRET,
+        JWT_REFRESH_SECRET
       ) as TokenPayload;
 
       // Verify token exists in DB and hasn't been revoked/expired
       const isValid = await storeOwnerRepository.findRefreshToken(
         decoded.id,
-        refreshToken,
+        refreshToken
       );
       if (!isValid) throw new Error("Token revoked or invalid");
 
@@ -202,7 +199,7 @@ export class StoreOwnerService {
         id: owner.id,
         storeName: owner.storeName,
         email: owner.email,
-        storeSubdomain: owner.storeSubdomain,
+        storeSubdomain: owner.storeSubdomain
       });
 
       // Update the access token record in DB for the new token
@@ -211,16 +208,16 @@ export class StoreOwnerService {
         owner.id,
         isValid.id, // Linked to existing refresh token ID
         newAccessToken,
-        accessExpiresAt,
+        accessExpiresAt
       );
 
       return {
         accessToken: newAccessToken,
         user: {
           id: owner.id,
-          storeName: owner.storeName,
-          email: owner.email,
-          storeSubdomain: owner.storeSubdomain,
+        storeName: owner.storeName,
+        email: owner.email,
+        storeSubdomain: owner.storeSubdomain,
           createdAt: owner.createdAt,
         },
       };
@@ -251,10 +248,10 @@ export class StoreOwnerService {
 
     return {
       id: owner.id,
-      storeName: owner.storeName,
-      ownerName: owner.ownerName,
-      email: owner.email,
-      storeSubdomain: owner.storeSubdomain,
+        storeName: owner.storeName,
+        ownerName:owner.ownerName,
+        email: owner.email,
+        storeSubdomain: owner.storeSubdomain,
       createdAt: owner.createdAt,
     };
   }
@@ -273,46 +270,8 @@ export class StoreOwnerService {
 
   verifyAccessToken(token: string): TokenPayload | null {
     try {
-      console.log("[JWT VERIFY] Starting JWT verification");
-      console.log(
-        `[JWT VERIFY] Token preview: ${token.substring(0, 30)}...${token.substring(token.length - 20)}`,
-      );
-      console.log(`[JWT VERIFY] Token length: ${token.length}`);
-      console.log(
-        `[JWT VERIFY] JWT_SECRET available: ${process.env.JWT_SECRET ? "✓ YES" : "✗ NO"}`,
-      );
-
-      if (!process.env.JWT_SECRET) {
-        console.log("[JWT VERIFY] ERROR: JWT_SECRET is not set!");
-        return null;
-      }
-
-      console.log(
-        `[JWT VERIFY] JWT_SECRET length: ${process.env.JWT_SECRET.length}`,
-      );
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET) as TokenPayload;
-
-      console.log("[JWT VERIFY] ✓ Token verified successfully");
-      console.log(`[JWT VERIFY] Decoded payload:`, {
-        id: decoded.id,
-        storeName: decoded.storeName,
-        email: decoded.email,
-      });
-
-      return decoded;
-    } catch (error) {
-      console.log("[JWT VERIFY] ✗ Verification failed");
-      if (error instanceof jwt.JsonWebTokenError) {
-        console.log(`[JWT VERIFY] JWT Error: ${error.message}`);
-      } else if (error instanceof jwt.TokenExpiredError) {
-        console.log(`[JWT VERIFY] Token expired at: ${error.expiredAt}`);
-      } else {
-        console.log(
-          `[JWT VERIFY] Error:`,
-          error instanceof Error ? error.message : String(error),
-        );
-      }
+      return jwt.verify(token, JWT_SECRET) as TokenPayload;
+    } catch {
       return null;
     }
   }
