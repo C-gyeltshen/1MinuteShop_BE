@@ -12,20 +12,18 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 // Function to determine allowed origins dynamically
 const getAllowedOrigins = () => {
-  const baseOrigins = [
-    FRONTEND_URL,
-    "http://localhost:3000",
-    "https://laso.la",
-  ];
+  const baseOrigins = [FRONTEND_URL, "http://localhost:3000", "https://laso.la"];
 
-  return (origin: string): string | null => {
-    // Allow exact matches
+  return (origin: string | undefined): string | null => {
+    // 1. If there is no origin (direct access, server-to-server, or same-origin),
+    // we usually want to allow it.
+    if (!origin) return "*"; // Or return a specific default origin
+
+    // 2. Allow exact matches
     if (baseOrigins.includes(origin)) return origin;
 
-    // Allow dynamic subdomains on laso.la (e.g., mystore.laso.la)
+    // 3. Allow dynamic subdomains
     if (/^https:\/\/[a-zA-Z0-9-]+\.laso\.la$/.test(origin)) return origin;
-
-    // Allow dynamic subdomains on localhost:3000 for development
     if (/^http:\/\/[a-zA-Z0-9-]+\.localhost:3000$/.test(origin)) return origin;
 
     return null;
