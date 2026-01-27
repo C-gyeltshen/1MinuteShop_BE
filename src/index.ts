@@ -12,7 +12,11 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 // Function to determine allowed origins dynamically
 const getAllowedOrigins = () => {
-  const baseOrigins = [FRONTEND_URL, "http://localhost:3000", "https://laso.la"];
+  const baseOrigins = [
+    FRONTEND_URL,
+    "http://localhost:3000",
+    "https://laso.la",
+  ];
 
   return (origin: string | undefined): string | null => {
     if (!origin) return "*";
@@ -23,7 +27,6 @@ const getAllowedOrigins = () => {
   };
 };
 
-
 app.use(
   "*",
   cors({
@@ -33,19 +36,25 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization"],
     exposeHeaders: ["Content-Length", "Set-Cookie"],
     maxAge: 600,
-  })
+  }),
 );
 
 app.use("*", logger());
 
 app.use("*", async (c, next) => {
   console.log(`\n📍 ${c.req.method} ${c.req.path}`);
-  console.log("🌐 Request Origin:", c.req.header("origin") || "No origin header");
-  
-  // Log all headers
-  const cookieHeader = c.req.header("cookie");
-  console.log("📋 Cookie Header:", cookieHeader || "No cookies");
-  
+  console.log(
+    "🌐 Request Origin:",
+    c.req.header("origin") || "No origin header",
+  );
+
+  const authHeader = c.req.header("Authorization");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const accessToken = authHeader.split(" ")[1];
+    console.log("🎫 Access Token:", accessToken);
+  } else {
+    console.log("🔑 No Bearer Token found in Authorization header");
+  }
   await next();
 });
 
