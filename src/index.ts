@@ -23,23 +23,6 @@ const getAllowedOrigins = () => {
   };
 };
 
-// Function to check and log cookies
-const checkAndLogCookies = (c: any) => {
-  const accessToken = getCookie(c, "accessToken");
-  const refreshToken = getCookie(c, "refreshToken");
-  
-  const hasCookies = !!accessToken || !!refreshToken;
-  const cookieInfo = {
-    hasCookies,
-    accessToken: accessToken ? `${accessToken.substring(0, 20)}...` : null,
-    refreshToken: refreshToken ? `${refreshToken.substring(0, 20)}...` : null,
-    accessTokenExists: !!accessToken,
-    refreshTokenExists: !!refreshToken,
-  };
-  
-  console.log("🍪 Cookie Information:", cookieInfo);
-  return cookieInfo;
-};
 
 app.use(
   "*",
@@ -58,9 +41,6 @@ app.use("*", logger());
 app.use("*", async (c, next) => {
   console.log(`\n📍 ${c.req.method} ${c.req.path}`);
   console.log("🌐 Request Origin:", c.req.header("origin") || "No origin header");
-  
-  // Check and log cookies
-  checkAndLogCookies(c);
   
   // Log all headers
   const cookieHeader = c.req.header("cookie");
