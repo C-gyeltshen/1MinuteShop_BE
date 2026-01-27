@@ -208,14 +208,4 @@ export class StoreOwnerRepository {
     return false;
   }
 
-  // async findStoreDataBySubDomain(storeSubDomain: string){
-  //   return await prisma.storeOwner.findUnique({
-  //     where: {
-  //       storeSubdomain: storeSubDomain
-  //     },
-  //     select: {
-
-  //     }
-  //   })
-  // }
 }

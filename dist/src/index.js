@@ -2,34 +2,44 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { serve } from "@hono/node-server";
-import { getCookie } from "hono/cookie"; // Add this import
+import { getCookie } from "hono/cookie";
 import router from "./routes/index.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 const app = new Hono();
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 // Function to determine allowed origins dynamically
 const getAllowedOrigins = () => {
-    const baseOrigins = [
-        FRONTEND_URL,
-        "http://localhost:3000",
-        "https://laso.la",
-    ];
+    const baseOrigins = [FRONTEND_URL, "http://localhost:3000", "https://laso.la"];
     return (origin) => {
-        // Allow exact matches
+        if (!origin)
+            return "*";
         if (baseOrigins.includes(origin))
             return origin;
-        // Allow dynamic subdomains on laso.la (e.g., mystore.laso.la)
         if (/^https:\/\/[a-zA-Z0-9-]+\.laso\.la$/.test(origin))
             return origin;
-        // Allow dynamic subdomains on localhost:3000 for development
         if (/^http:\/\/[a-zA-Z0-9-]+\.localhost:3000$/.test(origin))
             return origin;
         return null;
     };
 };
+// Function to check and log cookies
+const checkAndLogCookies = (c) => {
+    const accessToken = getCookie(c, "accessToken");
+    const refreshToken = getCookie(c, "refreshToken");
+    const hasCookies = !!accessToken || !!refreshToken;
+    const cookieInfo = {
+        hasCookies,
+        accessToken: accessToken ? `${accessToken.substring(0, 20)}...` : null,
+        refreshToken: refreshToken ? `${refreshToken.substring(0, 20)}...` : null,
+        accessTokenExists: !!accessToken,
+        refreshTokenExists: !!refreshToken,
+    };
+    console.log("🍪 Cookie Information:", cookieInfo);
+    return cookieInfo;
+};
 app.use("*", cors({
     origin: getAllowedOrigins(),
-    credentials: true, // ✓ Required for cookies
+    credentials: true,
     allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     exposeHeaders: ["Content-Length", "Set-Cookie"],
@@ -37,12 +47,13 @@ app.use("*", cors({
 }));
 app.use("*", logger());
 app.use("*", async (c, next) => {
-    console.log(`${c.req.method} ${c.req.path}`);
-    console.log("Origin:", c.req.header("origin"));
-    // Debug: Log cookies being received
-    const accessToken = getCookie(c, "accessToken");
-    const refreshToken = getCookie(c, "refreshToken");
-    console.log("Received cookies:", { accessToken: !!accessToken, refreshToken: !!refreshToken });
+    console.log(`\n📍 ${c.req.method} ${c.req.path}`);
+    console.log("🌐 Request Origin:", c.req.header("origin") || "No origin header");
+    // Check and log cookies
+    checkAndLogCookies(c);
+    // Log all headers
+    const cookieHeader = c.req.header("cookie");
+    console.log("📋 Cookie Header:", cookieHeader || "No cookies");
     await next();
 });
 app.use("*", errorHandler);

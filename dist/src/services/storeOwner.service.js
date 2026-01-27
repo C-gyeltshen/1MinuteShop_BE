@@ -14,29 +14,37 @@ const ONE_MONTH_MS = 30 * MS_IN_DAY;
 const SIX_MONTHS_MS = 180 * MS_IN_DAY;
 export class StoreOwnerService {
     async register(data) {
+        // Check email uniqueness
         const existingEmail = await storeOwnerRepository.findByEmail(data.email);
         if (existingEmail) {
             throw new Error("Email already exists, please try with a new email");
         }
+        // Check store name uniqueness
         const existingStoreName = await storeOwnerRepository.findByStoreName(data.storeName);
         if (existingStoreName) {
             throw new Error("Store name taken, try another name");
         }
-        // NEW: Check if subdomain will be unique before creating user
-        const potentialSubdomain = data.storeName.replace(/\s+/g, "").toLowerCase();
-        const existingSubdomain = await storeOwnerRepository.findSubDomain(potentialSubdomain);
-        if (existingSubdomain) {
-            throw new Error("A store with a similar name already exists. Please choose a different store name.");
+        // Generate and check subdomain uniqueness BEFORE creating user
+        let baseSubdomain = data.storeName.replace(/\s+/g, "").toLowerCase();
+        let subDomain = baseSubdomain;
+        let counter = 1;
+        // If subdomain exists, add number suffix
+        while (await storeOwnerRepository.findSubDomain(subDomain)) {
+            subDomain = `${baseSubdomain}${counter}`;
+            counter++;
+            if (counter > 100) {
+                throw new Error("Unable to generate unique subdomain. Please choose a different store name.");
+            }
         }
+        // Hash password and create user
         const password = await bcrypt.hash(data.password, 10);
         const owner = await storeOwnerRepository.create({ ...data, password });
         if (!owner) {
             throw new Error("Failed to create store owner data");
         }
-        // Generate subdomain and URL
-        const subDomain = potentialSubdomain; // Use the same value we checked
+        // Generate URL
         const subDomainUrl = `https://${subDomain}.laso.la`;
-        // Update the store subdomain in the database
+        // Update subdomain and URL in database
         await storeOwnerRepository.updateStoreSubDomain(owner.id, subDomain);
         await storeOwnerRepository.updateStoreUrl(owner.id, subDomainUrl);
         return {
@@ -95,8 +103,9 @@ export class StoreOwnerService {
     // FIXED: Correct logic for subdomain verification
     async verifyStoreSubDomain(storeSubDomain) {
         const subDomain = await storeOwnerRepository.findSubDomain(storeSubDomain);
-        if (!subDomain)
+        if (!subDomain) {
             throw new Error("Subdomain does not exist");
+        }
         return {
             exists: true,
             storeOwner: {

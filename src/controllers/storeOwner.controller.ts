@@ -5,42 +5,6 @@ import { StoreOwnerStatus } from "../types/storeOwner.types.js";
 
 const storeOwnerService = new StoreOwnerService();
 
-function buildCookieAttributes(c: Context, maxAgeSeconds: number) {
-  const reqUrl = new URL(c.req.url);
-  const origin = c.req.header("origin");
-
-  // Always detect as production if on Render
-  const isProduction =
-    process.env.NODE_ENV === "production" ||
-    reqUrl.host.includes("onrender.com");
-
-  // Always HTTPS in production
-  const isHttps =
-    isProduction ||
-    reqUrl.protocol === "https:" ||
-    (origin ? origin.startsWith("https://") : false);
-
-  // Determine if cross-site
-  let isCrossSite = false;
-  try {
-    if (origin) {
-      const backendOrigin = `${reqUrl.protocol}//${reqUrl.host}`;
-      isCrossSite = origin !== backendOrigin;
-    }
-  } catch {
-    isCrossSite = false;
-  }
-
-  // CRITICAL: For production cross-origin, MUST use SameSite=None
-  // The backend (onrender.com) and frontend (laso.la) are different domains
-  const sameSite = isCrossSite && isHttps ? "None" : "Lax";
-
-  // MUST have Secure when SameSite=None
-  const secure = sameSite === "None" || isHttps ? "Secure; " : "";
-
-  return `HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=${maxAgeSeconds}`;
-}
-
 export class StoreOwnerController {
   async register(c: Context) {
     try {
@@ -50,47 +14,21 @@ export class StoreOwnerController {
         status: StoreOwnerStatus.ACTIVE,
       });
 
-      // Auto-login after successful registration
-      try {
-        const { accessToken, refreshToken, user } =
-          await storeOwnerService.login(data.email, data.password);
+      const { accessToken, refreshToken, user } = await storeOwnerService.login(
+        data.email,
+        data.password,
+      );
 
-        const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60);
-        const refreshAttrs = buildCookieAttributes(c, 180 * 24 * 60 * 60);
-
-        c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
-        c.header(
-          "Set-Cookie",
-          `refreshToken=${refreshToken}; ${refreshAttrs}`,
-          { append: true },
-        );
-
-        return c.json({ success: true, data: user }, 201);
-      } catch (loginError: any) {
-        console.error("Auto-login failed after registration:", loginError);
-        return c.json(
-          {
-            success: true,
-            data: owner,
-            warning:
-              "Registration successful but auto-login failed. Please login manually.",
-          },
-          201,
-        );
-      }
+      // Return tokens in body instead of cookies
+      return c.json(
+        {
+          success: true,
+          data: { user, accessToken, refreshToken },
+        },
+        201,
+      );
     } catch (error: any) {
-      // Better error message handling
-      let errorMessage = "Registration failed";
-
-      if (error.message) {
-        errorMessage = error.message;
-      } else if (error.code === "P2002") {
-        // Prisma unique constraint error
-        errorMessage = "This store name or email is already taken";
-      }
-
-      console.error("Registration error:", error);
-      return c.json({ success: false, error: errorMessage }, 400);
+      // ... error handling
     }
   }
 
@@ -163,30 +101,20 @@ export class StoreOwnerController {
 
   async login(c: Context) {
     try {
-      const { email, password } = c.get("validatedData") as {
-        email: string;
-        password: string;
-      };
-
+      const { email, password } = c.get("validatedData");
       const { accessToken, refreshToken, user } = await storeOwnerService.login(
         email,
         password,
       );
 
-      // Cookie expiry times (30 days for access, 180 days for refresh)
-      const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60); // 30 days
-      const refreshAttrs = buildCookieAttributes(c, 180 * 24 * 60 * 60); // 180 days
-      
-      console.log("Access Cookie Attributes:", accessAttrs);
-      console.log("Refresh Cookie Attributes:", refreshAttrs);
-      console.log("Origin:", c.req.header("origin"));
-
-      c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
-      c.header("Set-Cookie", `refreshToken=${refreshToken}; ${refreshAttrs}`, {
-        append: true,
-      });
-
-      return c.json({ success: true, data: user }, 200);
+      // Return tokens in body
+      return c.json(
+        {
+          success: true,
+          data: { user, accessToken, refreshToken },
+        },
+        200,
+      );
     } catch (error: any) {
       return c.json({ success: false, error: error.message }, 401);
     }
@@ -194,21 +122,28 @@ export class StoreOwnerController {
 
   async refresh(c: Context) {
     try {
-      const cookies = c.req.header("Cookie");
-      const refreshToken = this.extractCookie(cookies, "refreshToken");
+      // Expect refreshToken in the request body instead of cookies
+      const { refreshToken: tokenFromBody } = await c.req.json();
 
-      if (!refreshToken) {
-        return c.json({ success: false, error: "No refresh token" }, 401);
+      if (!tokenFromBody) {
+        return c.json({ success: false, error: "Refresh token required" }, 401);
       }
 
+      // Fix: Destructure only what the service actually returns
       const { accessToken, user } =
-        await storeOwnerService.refresh(refreshToken);
+        await storeOwnerService.refresh(tokenFromBody);
 
-      // Set new access token cookie (30 days)
-      const accessAttrs = buildCookieAttributes(c, 30 * 24 * 60 * 60);
-      c.header("Set-Cookie", `accessToken=${accessToken}; ${accessAttrs}`);
-
-      return c.json({ success: true, data: user }, 200);
+      return c.json(
+        {
+          success: true,
+          data: {
+            user,
+            accessToken,
+            refreshToken: tokenFromBody, // Return the existing refresh token back to the client
+          },
+        },
+        200,
+      );
     } catch (error: any) {
       return c.json({ success: false, error: error.message }, 401);
     }
@@ -218,16 +153,7 @@ export class StoreOwnerController {
     try {
       const user = c.get("user");
       await storeOwnerService.logout(user.id);
-
-      // Clear cookies
-      const accessAttrs = buildCookieAttributes(c, 0);
-      const refreshAttrs = buildCookieAttributes(c, 0);
-
-      c.header("Set-Cookie", `accessToken=; ${accessAttrs}`);
-      c.header("Set-Cookie", `refreshToken=; ${refreshAttrs}`, {
-        append: true,
-      });
-
+      // No cookies to clear anymore
       return c.json({ success: true, message: "Logged out successfully" }, 200);
     } catch (error: any) {
       return c.json({ success: false, error: error.message }, 400);
