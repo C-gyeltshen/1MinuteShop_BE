@@ -67,7 +67,19 @@ export class ProductController {
 
   async getStoreProducts(c: Context) {
     try {
-      const storeOwnerId = c.get("storeOwnerId");
+      // Changed from c.get("storeOwnerId") to c.req.param("storeOwnerId")
+      const storeOwnerId = c.req.param("storeOwnerId");
+      
+      if (!storeOwnerId) {
+        return c.json(
+          {
+            success: false,
+            message: "Store Owner ID is required",
+          },
+          400
+        );
+      }
+
       const result = await productService.getProductsByStoreOwner(storeOwnerId);
       return c.json(result, 200);
     } catch (error: any) {
