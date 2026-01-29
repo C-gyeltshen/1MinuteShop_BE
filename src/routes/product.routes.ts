@@ -8,8 +8,8 @@ const productController = new ProductController();
 // Protected routes (require authentication)
 // productRoutes.use("*", authMiddleware);
 
-// POST - Create product
-productRoutes.post("/", (c) => productController.createProduct(c));
+// POST - Create product by storeOwnerId
+productRoutes.post("/store/:storeOwnerId", (c) => productController.createProduct(c));
 
 // GET - Get all products by storeOwnerId
 productRoutes.get("/store/:storeOwnerId", (c) => productController.getStoreProducts(c));

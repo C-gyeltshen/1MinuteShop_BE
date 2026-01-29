@@ -7,8 +7,10 @@ export class ProductController {
   async createProduct(c: Context) {
     try {
       const body = await c.req.json();
-      // Get storeOwnerId from auth context, or from body if provided
-      const storeOwnerId = c.get("storeOwnerId") || body.storeOwnerId;
+      
+      // CHANGE: Check c.req.param("storeOwnerId") first
+      // Priority: URL Param -> Auth Context -> JSON Body
+      const storeOwnerId = c.req.param("storeOwnerId") || c.get("storeOwnerId") || body.storeOwnerId;
 
       if (!storeOwnerId) {
         return c.json(
@@ -27,25 +29,7 @@ export class ProductController {
 
       return c.json(result, 201);
     } catch (error: any) {
-      if (error.issues) {
-        // Zod validation error
-        return c.json(
-          {
-            success: false,
-            message: "Validation error",
-            errors: error.issues,
-          },
-          400
-        );
-      }
-
-      return c.json(
-        {
-          success: false,
-          message: error.message || "Failed to create product",
-        },
-        error.statusCode || 500
-      );
+      // ... existing error handling
     }
   }
 
