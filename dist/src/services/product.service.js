@@ -6,6 +6,8 @@ export class ProductService {
         const validated = createProductSchema.parse(data);
         const product = await productRepository.create({
             ...validated,
+            // Provide a default empty string if the image URL is undefined
+            productImageUrl: validated.productImageUrl || "",
             price: validated.price,
         });
         return {
@@ -68,7 +70,9 @@ export class ProductService {
             ...(data.price && { price: data.price }),
             ...(data.productImageUrl && { productImageUrl: data.productImageUrl }),
             ...(data.description && { description: data.description }),
-            ...(data.stockQuantity !== undefined && { stockQuantity: data.stockQuantity }),
+            ...(data.stockQuantity !== undefined && {
+                stockQuantity: data.stockQuantity,
+            }),
         };
         const updated = await productRepository.update(productId, updateData);
         return {

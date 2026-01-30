@@ -2,7 +2,7 @@ export interface CreateProductInput {
   storeOwnerId: string;
   productName: string;
   price: string;
-  productImageUrl?: string;
+  productImageUrl: string;
   description?: string;
   stockQuantity: number;
 }

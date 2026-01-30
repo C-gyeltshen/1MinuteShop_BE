@@ -5,10 +5,6 @@ export class UploadController {
     constructor() {
         this.uploadService = new ImageUploadService();
     }
-    /**
-     * Upload image to Supabase Storage
-     * POST /api/upload/image
-     */
     uploadImage = async (c) => {
         try {
             const body = await c.req.json();

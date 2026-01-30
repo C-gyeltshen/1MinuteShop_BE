@@ -7,9 +7,11 @@ const productRepository = new ProductRepository();
 export class ProductService {
   async createProduct(data: CreateProductInput) {
     const validated = createProductSchema.parse(data);
-    
+
     const product = await productRepository.create({
       ...validated,
+      // Provide a default empty string if the image URL is undefined
+      productImageUrl: validated.productImageUrl || "",
       price: validated.price,
     });
 
@@ -66,7 +68,7 @@ export class ProductService {
   async updateProduct(
     productId: string,
     storeOwnerId: string,
-    data: Partial<CreateProductInput>
+    data: Partial<CreateProductInput>,
   ) {
     const product = await productRepository.findById(productId);
 
@@ -89,7 +91,9 @@ export class ProductService {
       ...(data.price && { price: data.price }),
       ...(data.productImageUrl && { productImageUrl: data.productImageUrl }),
       ...(data.description && { description: data.description }),
-      ...(data.stockQuantity !== undefined && { stockQuantity: data.stockQuantity }),
+      ...(data.stockQuantity !== undefined && {
+        stockQuantity: data.stockQuantity,
+      }),
     };
 
     const updated = await productRepository.update(productId, updateData);
@@ -154,11 +158,7 @@ export class ProductService {
     };
   }
 
-  async updateStock(
-    productId: string,
-    storeOwnerId: string,
-    quantity: number
-  ) {
+  async updateStock(productId: string, storeOwnerId: string, quantity: number) {
     const product = await productRepository.findById(productId);
 
     if (!product) {

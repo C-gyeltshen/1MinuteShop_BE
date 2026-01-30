@@ -9,10 +9,6 @@ export class UploadController {
     this.uploadService = new ImageUploadService();
   }
 
-  /**
-   * Upload image to Supabase Storage
-   * POST /api/upload/image
-   */
   uploadImage = async (c: Context) => {
     try {
       const body = await c.req.json();
