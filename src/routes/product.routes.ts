@@ -1,12 +1,8 @@
 import { Hono } from "hono";
-import { authMiddleware } from "../middlewares/auth.middleware.js"; // Your auth middleware
 import { ProductController } from "../controllers/product.controller.js";
 
 const productRoutes = new Hono();
 const productController = new ProductController();
-
-// Protected routes (require authentication)
-// productRoutes.use("*", authMiddleware);
 
 // POST - Create product by storeOwnerId
 productRoutes.post("/store/:storeOwnerId", (c) => productController.createProduct(c));
