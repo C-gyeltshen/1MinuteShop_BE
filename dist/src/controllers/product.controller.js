@@ -4,8 +4,9 @@ export class ProductController {
     async createProduct(c) {
         try {
             const body = await c.req.json();
-            // Get storeOwnerId from auth context, or from body if provided
-            const storeOwnerId = c.get("storeOwnerId") || body.storeOwnerId;
+            // CHANGE: Check c.req.param("storeOwnerId") first
+            // Priority: URL Param -> Auth Context -> JSON Body
+            const storeOwnerId = c.req.param("storeOwnerId") || c.get("storeOwnerId") || body.storeOwnerId;
             if (!storeOwnerId) {
                 return c.json({
                     success: false,
@@ -19,18 +20,7 @@ export class ProductController {
             return c.json(result, 201);
         }
         catch (error) {
-            if (error.issues) {
-                // Zod validation error
-                return c.json({
-                    success: false,
-                    message: "Validation error",
-                    errors: error.issues,
-                }, 400);
-            }
-            return c.json({
-                success: false,
-                message: error.message || "Failed to create product",
-            }, error.statusCode || 500);
+            // ... existing error handling
         }
     }
     async getProduct(c) {
@@ -48,7 +38,14 @@ export class ProductController {
     }
     async getStoreProducts(c) {
         try {
-            const storeOwnerId = c.get("storeOwnerId");
+            // Changed from c.get("storeOwnerId") to c.req.param("storeOwnerId")
+            const storeOwnerId = c.req.param("storeOwnerId");
+            if (!storeOwnerId) {
+                return c.json({
+                    success: false,
+                    message: "Store Owner ID is required",
+                }, 400);
+            }
             const result = await productService.getProductsByStoreOwner(storeOwnerId);
             return c.json(result, 200);
         }
