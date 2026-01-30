@@ -26,10 +26,27 @@ export class ProductController {
         ...body,
         storeOwnerId,
       });
-
-      return c.json(result, 201);
+      return c.json(result, 201); 
     } catch (error: any) {
-      // ... existing error handling
+      // Handle Zod Validation Errors specifically
+      if (error.name === "ZodError" || (Array.isArray(error.issues) && error.issues.length > 0)) {
+        return c.json(
+          {
+            success: false,
+            message: "Validation failed",
+            errors: error.issues || error.errors, // Return structured validation issues
+          },
+          400
+        );
+      }
+
+      return c.json(
+        {
+          success: false,
+          message: error.message || "Failed to create product",
+        },
+        error.statusCode || 500
+      );
     }
   }
 

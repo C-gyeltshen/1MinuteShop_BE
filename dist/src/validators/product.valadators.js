@@ -20,7 +20,7 @@ export const createProductSchema = z.object({
         .or(z.literal("")),
     description: z
         .string()
-        .min(10, "Description must be at least 10 characters")
+        .min(2, "Description must be at least 2 characters")
         .max(1000, "Description must be at most 1000 characters")
         .optional()
         .or(z.literal("")),
