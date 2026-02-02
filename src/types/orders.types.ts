@@ -22,5 +22,8 @@ export interface CreteOrderInput{
     paymentStatus: PaymentStatus;
     paymentScreenshotUrl: string;
     customerNotes: string;
-    
+}
+
+export interface UpdateOrderStatus{
+    orderId : string;
 }
