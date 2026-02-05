@@ -1,16 +1,15 @@
-var OrderStatus;
+export var OrderStatus;
 (function (OrderStatus) {
-    OrderStatus["PENDING"] = "pending";
-    OrderStatus["CONFIRMED"] = "confirm";
-    OrderStatus["PROCESSING"] = "processing";
-    OrderStatus["SHIPPED"] = "shipped";
-    OrderStatus["DELIVERED"] = "delivered";
-    OrderStatus["CANCELLED"] = "cancelled";
+    OrderStatus["PENDING"] = "PENDING";
+    OrderStatus["CONFIRMED"] = "CONFIRMED";
+    OrderStatus["PROCESSING"] = "PROCESSING";
+    OrderStatus["SHIPPED"] = "SHIPPED";
+    OrderStatus["DELIVERED"] = "DELIVERED";
+    OrderStatus["CANCELLED"] = "CANCELLED";
 })(OrderStatus || (OrderStatus = {}));
-var PaymentStatus;
+export var PaymentStatus;
 (function (PaymentStatus) {
-    PaymentStatus["PENDING"] = "pending";
-    PaymentStatus["RECEIVED"] = "received";
-    PaymentStatus["FAILED"] = "failed";
+    PaymentStatus["PENDING"] = "PENDING";
+    PaymentStatus["RECEIVED"] = "RECEIVED";
+    PaymentStatus["FAILED"] = "FAILED";
 })(PaymentStatus || (PaymentStatus = {}));
-export {};

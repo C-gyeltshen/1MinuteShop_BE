@@ -1,30 +1,192 @@
-import { CustomerRepositiory } from "../repositories/customer.repository.js";
-import type { CreateCustomerInput } from "../types/customer.types.js";
+import { CustomerRepository } from "../repositories/customer.repository.js";
+import type { PaginatedCustomerResponse, UpdateCustomerInput } from "../types/customer.types.js";
+import type { PaginationParams } from "../types/product.types.js";
+import type { CreateCustomerInput } from "../validators/customer.validation.js";
 
-const customerRepository = new CustomerRepositiory();
 
-export class CustomerService{
-    async createCustomer(data: CreateCustomerInput){
-        const validateCustomerEmail = await customerRepository.findCustomerByEmail(data.email);
-        if (validateCustomerEmail){
-            console.log(`Customer with the email ${data.email} already exist`)
-            return {
-                statusCode: 200,
-                data: validateCustomerEmail
-            }
-        }else{
-            const createCustomer = await customerRepository.create(data)
-            if (!createCustomer){
-                throw {
-                    statusCode : 404,
-                    message: 'Error creating customer record'
-                }
-            }else{
-                return {
-                    success: true,
-                    data: data
-                }
-            }
-        }
-    }    
+const customerRepository = new CustomerRepository();
+
+export class CustomerService {
+  /**
+   * Create a new customer
+   */
+  async createCustomer(data: CreateCustomerInput) {
+    // Check if customer with email already exists
+    const existingCustomer = await customerRepository.findCustomerByEmail(data.email);
+    
+    if (existingCustomer) {
+      throw {
+        statusCode: 409,
+        message: `Customer with email ${data.email} already exists`,
+        data: existingCustomer,
+      };
+    }
+
+    // Create the customer
+    const customer = await customerRepository.create(data);
+
+    if (!customer) {
+      throw {
+        statusCode: 500,
+        message: "Error creating customer record",
+      };
+    }
+
+    return {
+      success: true,
+      statusCode: 201,
+      message: "Customer created successfully",
+      data: customer,
+    };
+  }
+
+  /**
+   * Get customer by ID with details
+   */
+  async getCustomerById(customerId: string) {
+    const customer = await customerRepository.findCustomerById(customerId);
+
+    if (!customer) {
+      throw {
+        statusCode: 404,
+        message: "Customer not found",
+      };
+    }
+
+    return {
+      success: true,
+      statusCode: 200,
+      data: customer,
+    };
+  }
+
+  /**
+   * Get all customers with pagination
+   */
+  async getAllCustomers(params: PaginationParams): Promise<{
+    success: boolean;
+    statusCode: number;
+    data: PaginatedCustomerResponse;
+  }> {
+    const result = await customerRepository.findAll(params);
+
+    return {
+      success: true,
+      statusCode: 200,
+      data: result,
+    };
+  }
+
+  /**
+   * Update customer information
+   */
+  async updateCustomer(customerId: string, data: UpdateCustomerInput) {
+    // Check if customer exists
+    const existingCustomer = await customerRepository.findCustomerById(customerId);
+
+    if (!existingCustomer) {
+      throw {
+        statusCode: 404,
+        message: "Customer not found",
+      };
+    }
+
+    // If email is being updated, check if it's already taken by another customer
+    if (data.email && data.email !== existingCustomer.email) {
+      const customerWithEmail = await customerRepository.findCustomerByEmail(data.email);
+      
+      if (customerWithEmail && customerWithEmail.id !== customerId) {
+        throw {
+          statusCode: 409,
+          message: `Email ${data.email} is already taken by another customer`,
+        };
+      }
+    }
+
+    // Update the customer
+    const updatedCustomer = await customerRepository.update(customerId, data);
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Customer updated successfully",
+      data: updatedCustomer,
+    };
+  }
+
+  /**
+   * Delete a customer
+   */
+  async deleteCustomer(customerId: string) {
+    // Check if customer exists
+    const customer = await customerRepository.findCustomerById(customerId);
+
+    if (!customer) {
+      throw {
+        statusCode: 404,
+        message: "Customer not found",
+      };
+    }
+
+    // Check if customer has orders
+    const hasOrders = await customerRepository.hasOrders(customerId);
+
+    if (hasOrders) {
+      throw {
+        statusCode: 400,
+        message: "Cannot delete customer with existing orders. Please delete or reassign orders first.",
+      };
+    }
+
+    // Delete the customer
+    await customerRepository.delete(customerId);
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Customer deleted successfully",
+    };
+  }
+
+  /**
+   * Get customer statistics
+   */
+  async getCustomerStats(customerId: string) {
+    const customer = await customerRepository.findCustomerById(customerId);
+
+    if (!customer) {
+      throw {
+        statusCode: 404,
+        message: "Customer not found",
+      };
+    }
+
+    const stats = await customerRepository.getCustomerStats(customerId);
+
+    return {
+      success: true,
+      statusCode: 200,
+      data: stats,
+    };
+  }
+
+  /**
+   * Search customers by email
+   */
+  async searchCustomerByEmail(email: string) {
+    const customer = await customerRepository.findCustomerByEmail(email);
+
+    if (!customer) {
+      throw {
+        statusCode: 404,
+        message: "Customer not found",
+      };
+    }
+
+    return {
+      success: true,
+      statusCode: 200,
+      data: customer,
+    };
+  }
 }

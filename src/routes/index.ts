@@ -4,6 +4,7 @@ import productRoutes from "./product.routes.js";
 import storeRoutes from "./store.routes.js";
 import uploadRoutes from "./imageUpload.routes.js";
 import orderRoutes from "./order.routes.js";
+import customerRoutes from "./customer.routes.js";
 
 const router = new Hono();
 
@@ -14,4 +15,5 @@ router.route("/products", productRoutes)
 router.route("/stores", storeRoutes);
 router.route('/upload', uploadRoutes);
 router.route('/orders', orderRoutes);
+router.route('/customers',customerRoutes)
 export default router;
