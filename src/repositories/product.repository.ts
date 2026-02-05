@@ -190,7 +190,6 @@ async findBySubdomain(subdomain: string) {
         _count: {
           select: {
             orderItems: true,
-            cartItems: true,
             productReviews: true,
           },
         },

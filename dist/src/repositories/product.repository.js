@@ -166,7 +166,6 @@ export class ProductRepository {
                 _count: {
                     select: {
                         orderItems: true,
-                        cartItems: true,
                         productReviews: true,
                     },
                 },
