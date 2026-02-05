@@ -1,5 +1,4 @@
 export interface CreateCustomerInput{
-    storeOwnerId: string;
     customerName: string;
     email: string;
     phoneNumber?: string;
