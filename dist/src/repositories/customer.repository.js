@@ -8,10 +8,12 @@ export class CustomerRepositiory {
         });
     }
     async findCustomerByEmail(customerEmail) {
-        return await prisma.customer.findUnique({
+        // Changed findUnique to findFirst to resolve the type incompatibility 
+        // where 'email' was not recognized as a sufficient unique selector.
+        return await prisma.customer.findFirst({
             where: {
-                email: customerEmail
-            }
+                email: customerEmail,
+            },
         });
     }
     async create(data) {
