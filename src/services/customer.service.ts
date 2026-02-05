@@ -5,16 +5,13 @@ const customerRepository = new CustomerRepositiory();
 
 export class CustomerService{
     async createCustomer(data: CreateCustomerInput){
-        const validateStoreOwner = await customerRepository.findByStoreOwnerId(data.storeOwnerId);
-        if (!validateStoreOwner){
-            throw {
-                statusCode: 404,
-                message: "Store Owner Id not found"
-            }
-        }
         const validateCustomerEmail = await customerRepository.findCustomerByEmail(data.email);
         if (validateCustomerEmail){
             console.log(`Customer with the email ${data.email} already exist`)
+            return {
+                statusCode: 200,
+                data: validateCustomerEmail
+            }
         }else{
             const createCustomer = await customerRepository.create(data)
             if (!createCustomer){
