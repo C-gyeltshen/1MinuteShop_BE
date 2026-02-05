@@ -30,8 +30,6 @@ model StoreOwner {
   customers      Customer[]
   orders         Order[]
   orderItems     OrderItem[]
-  shoppingCarts  ShoppingCart[]
-  cartItems      CartItem[]
   storeSettings  StoreSettings?
   categories     Category[]
   productReviews ProductReview[]
@@ -70,7 +68,6 @@ model Product {
   // Relations
   StoreOwner     StoreOwner      @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
   orderItems     OrderItem[]
-  cartItems      CartItem[]
   productReviews ProductReview[]
 
   @@index([storeOwnerId])
@@ -86,7 +83,7 @@ model Customer {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   storeOwnerId String   @db.Uuid
   customerName String
-  email        String?
+  email        String   @unique
   phoneNumber  String?
   address      String?
   city         String?
@@ -99,7 +96,6 @@ model Customer {
   // Relations
   StoreOwner     StoreOwner      @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
   orders         Order[]
-  shoppingCarts  ShoppingCart[]
   productReviews ProductReview[]
 
   @@index([storeOwnerId])
@@ -180,51 +176,6 @@ model OrderItem {
   @@map("order_items")
 }
 
-// =====================================================
-// SHOPPING CART
-// =====================================================
-
-model ShoppingCart {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  storeOwnerId String   @db.Uuid
-  customerId   String?  @db.Uuid
-  sessionId    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Relations
-  StoreOwner StoreOwner @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
-  customer   Customer?  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  cartItems  CartItem[]
-
-  @@index([storeOwnerId])
-  @@index([sessionId])
-  @@index([customerId])
-  @@map("shopping_cart")
-}
-
-// =====================================================
-// CART ITEMS
-// =====================================================
-
-model CartItem {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  cartId       String   @db.Uuid
-  productId    String   @db.Uuid
-  storeOwnerId String   @db.Uuid
-  quantity     Int      @default(1)
-  addedAt      DateTime @default(now())
-
-  // Relations
-  cart       ShoppingCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product    Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
-  StoreOwner StoreOwner   @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
-
-  @@index([cartId])
-  @@index([productId])
-  @@index([storeOwnerId])
-  @@map("cart_items")
-}
 
 // =====================================================
 // STORE SETTINGS
