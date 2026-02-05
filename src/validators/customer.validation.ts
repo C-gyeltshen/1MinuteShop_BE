@@ -11,29 +11,34 @@ export const CreateCustomerSchema = z.object({
   phoneNumber: z
     .string()
     .length(8, "Phone Number must be of length of 8")
-    .optional(),
+    .optional()
+    .nullable(),  // ADD nullable
   address: z
     .string()
     .max(200, "Address must be at most 200 characters")
-    .optional(),
+    .optional()
+    .nullable(),  // ADD nullable
   city: z
     .string()
     .max(100, "City must be at most 100 characters")
-    .optional(),
+    .optional()
+    .nullable(),  // ADD nullable
   state: z
     .string()
     .max(100, "State must be at most 100 characters")
-    .optional(),
+    .optional()
+    .nullable(),  // ADD nullable
   postalCode: z
     .string()
     .max(20, "Postal code must be at most 20 characters")
-    .optional(),
+    .optional()
+    .nullable(),  // ADD nullable
   country: z
     .string()
     .max(100, "Country must be at most 100 characters")
-    .optional(),
+    .optional()
+    .nullable(),  // ADD nullable
 });
-
 
 export const UpdateCustomerSchema = z.object({
   customerName: z
@@ -48,28 +53,35 @@ export const UpdateCustomerSchema = z.object({
   phoneNumber: z
     .string()
     .length(8, "Phone Number must be of length of 8")
-    .optional(),
+    .optional()
+    .nullable(),  // ADD nullable
   address: z
     .string()
     .max(200, "Address must be at most 200 characters")
-    .optional(),
+    .optional()
+    .nullable(),  // ADD nullable
   city: z
     .string()
     .max(100, "City must be at most 100 characters")
-    .optional(),
+    .optional()
+    .nullable(),  // ADD nullable
   state: z
     .string()
     .max(100, "State must be at most 100 characters")
-    .optional(),
+    .optional()
+    .nullable(),  // ADD nullable
   postalCode: z
     .string()
     .max(20, "Postal code must be at most 20 characters")
-    .optional(),
+    .optional()
+    .nullable(),  // ADD nullable
   country: z
     .string()
     .max(100, "Country must be at most 100 characters")
-    .optional(),
+    .optional()
+    .nullable(),  // ADD nullable
 });
+
 export const UUIDSchema = z.string().uuid("Invalid UUID format");
 
 export type CreateCustomerInput = z.infer<typeof CreateCustomerSchema>;

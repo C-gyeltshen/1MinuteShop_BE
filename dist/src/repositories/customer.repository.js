@@ -59,12 +59,12 @@ export class CustomerRepository {
             data: {
                 customerName: data.customerName,
                 email: data.email,
-                phoneNumber: data.phoneNumber,
-                address: data.address,
-                city: data.city,
-                state: data.state,
-                postalCode: data.postalCode,
-                country: data.country,
+                phoneNumber: data.phoneNumber ?? null, // FIX: Convert undefined to null
+                address: data.address ?? null,
+                city: data.city ?? null,
+                state: data.state ?? null,
+                postalCode: data.postalCode ?? null,
+                country: data.country ?? null,
             },
         });
     }
@@ -77,8 +77,8 @@ export class CustomerRepository {
                 id: customerId,
             },
             data: {
-                ...(data.customerName && { customerName: data.customerName }),
-                ...(data.email && { email: data.email }),
+                ...(data.customerName !== undefined && { customerName: data.customerName }),
+                ...(data.email !== undefined && { email: data.email }),
                 ...(data.phoneNumber !== undefined && { phoneNumber: data.phoneNumber }),
                 ...(data.address !== undefined && { address: data.address }),
                 ...(data.city !== undefined && { city: data.city }),
