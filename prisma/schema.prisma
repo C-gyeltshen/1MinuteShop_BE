@@ -27,7 +27,6 @@ model StoreOwner {
 
   // Relations
   products       Product[]
-  customers      Customer[]
   orders         Order[]
   orderItems     OrderItem[]
   storeSettings  StoreSettings?
@@ -81,7 +80,6 @@ model Product {
 
 model Customer {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  storeOwnerId String   @db.Uuid
   customerName String
   email        String   @unique
   phoneNumber  String?
@@ -94,11 +92,11 @@ model Customer {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  StoreOwner     StoreOwner      @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+
   orders         Order[]
   productReviews ProductReview[]
 
-  @@index([storeOwnerId])
+
   @@index([email])
   @@index([customerName])
   @@map("customers")

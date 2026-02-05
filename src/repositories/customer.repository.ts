@@ -21,7 +21,6 @@ export class CustomerRepositiory {
   async create(data: CreateCustomerInput) {
     return await prisma.customer.create({
       data: {
-        storeOwnerId: data.storeOwnerId,
         customerName: data.customerName,
         email: data.email,
         phoneNumber: data.phoneNumber,
