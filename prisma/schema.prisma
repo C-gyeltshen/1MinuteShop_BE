@@ -105,12 +105,12 @@ model Order {
   id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   storeOwnerId         String        @db.Uuid
   customerId           String        @db.Uuid
-  orderNumber          String
+  orderNumber          Int           @default(autoincrement())
   totalAmount          Decimal       @db.Decimal(10, 2)
   orderStatus          OrderStatus   @default(PENDING)
   paymentStatus        PaymentStatus @default(PENDING)
-  paymentScreenshotUrl String 
-  shippingAddress      String        
+  paymentScreenshotUrl String
+  shippingAddress      String
   shippingCity         String
   shippingState        String
   shippingPostalCode   String
