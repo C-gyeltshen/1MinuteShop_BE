@@ -84,11 +84,6 @@ model Customer {
   customerName String
   email        String   @unique
   phoneNumber  String   @unique
-  address      String?
-  city         String?
-  state        String?
-  postalCode   String?
-  country      String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -114,7 +109,12 @@ model Order {
   totalAmount          Decimal       @db.Decimal(10, 2)
   orderStatus          OrderStatus   @default(PENDING)
   paymentStatus        PaymentStatus @default(PENDING)
-  paymentScreenshotUrl String?
+  paymentScreenshotUrl String 
+  shippingAddress      String        
+  shippingCity         String
+  shippingState        String
+  shippingPostalCode   String
+  shippingCountry      String
   customerNotes        String?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
