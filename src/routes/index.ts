@@ -15,5 +15,4 @@ router.route("/products", productRoutes)
 router.route("/stores", storeRoutes);
 router.route('/upload', uploadRoutes);
 router.route('/orders', orderRoutes);
-// router.route('/customers',customerRoutes)
 export default router;

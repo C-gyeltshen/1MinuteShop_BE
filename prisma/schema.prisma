@@ -83,7 +83,7 @@ model Customer {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   customerName String
   email        String   @unique
-  phoneNumber  String?
+  phoneNumber  String   @unique
   address      String?
   city         String?
   state        String?
@@ -96,7 +96,6 @@ model Customer {
 
   orders         Order[]
   productReviews ProductReview[]
-
 
   @@index([email])
   @@index([customerName])
@@ -174,7 +173,6 @@ model OrderItem {
   @@index([storeOwnerId])
   @@map("order_items")
 }
-
 
 // =====================================================
 // STORE SETTINGS
