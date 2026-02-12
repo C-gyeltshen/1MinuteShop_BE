@@ -275,7 +275,6 @@ export class StoreOwnerService {
     if (!owner) throw new Error("Store owner not found");
 
     return {
-      id: owner.id,
       storeName: owner.storeName,
       ownerName: owner.ownerName,
       email: owner.email,

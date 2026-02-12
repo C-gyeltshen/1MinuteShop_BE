@@ -5,8 +5,10 @@ export class StoreRepository{
         return await prisma.storeOwner.findUnique({
             where: {storeSubdomain: subDomain},
             select:{
+                id:true,
                 storeSubdomain: true,
-                storeName: true
+                storeName: true,
+                status: true
             }
         })
     }

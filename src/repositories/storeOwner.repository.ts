@@ -23,6 +23,16 @@ export class StoreOwnerRepository {
       where: {
         id: id,
       },
+      select: {
+        id: true,
+        status: true,
+        storeSubdomain: true,
+        storeName:true,
+        ownerName: true,
+        email: true,
+        storeUrl: true,
+        createdAt:true
+      }
     });
   }
 

@@ -1,5 +1,8 @@
 import { prisma } from "../../lib/prisma.js";
 import type { CreateProductInput } from "../types/product.types.js";
+import { StoreOwnerRepository } from "./storeOwner.repository.js";
+
+const storeOwnerRepository = new StoreOwnerRepository();
 
 export class ProductRepository {
   async create(data: CreateProductInput) {
@@ -195,5 +198,16 @@ async findBySubdomain(subdomain: string) {
         },
       },
     });
+  }
+
+  async findProductInStore(productId:string){
+    await prisma.product.findUnique({
+      where: {
+        id: productId
+      },
+      select:{
+        productName:true,
+      }
+    })
   }
 }

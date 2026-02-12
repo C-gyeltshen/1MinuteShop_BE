@@ -103,7 +103,7 @@ model Customer {
 
 model Order {
   id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  storeOwnerId         String        @db.Uuid
+  storeSubdomain       String 
   customerId           String        @db.Uuid
   orderNumber          Int           @default(autoincrement())
   totalAmount          Decimal       @db.Decimal(10, 2)
@@ -120,12 +120,12 @@ model Order {
   updatedAt            DateTime      @updatedAt
 
   // Relations
-  StoreOwner StoreOwner  @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+  StoreOwner StoreOwner  @relation(fields: [storeSubdomain], references: [storeSubdomain], onDelete: Cascade)
   customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
 
-  @@unique([storeOwnerId, orderNumber])
-  @@index([storeOwnerId])
+  @@unique([storeSubdomain, orderNumber])
+  @@index([storeSubdomain])
   @@index([customerId])
   @@index([orderNumber])
   @@index([orderStatus])
@@ -154,23 +154,22 @@ enum PaymentStatus {
 // =====================================================
 
 model OrderItem {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orderId      String   @db.Uuid
-  productId    String   @db.Uuid
-  storeOwnerId String   @db.Uuid
-  quantity     Int
-  unitPrice    Decimal  @db.Decimal(10, 2)
-  totalPrice   Decimal  @db.Decimal(10, 2)
-  createdAt    DateTime @default(now())
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId        String   @db.Uuid
+  productId      String   @db.Uuid
+  storeSubdomain String   
+  quantity       Int
+  unitPrice      Decimal  @db.Decimal(10, 2)
+  createdAt      DateTime @default(now())
 
   // Relations
   order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product    Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
-  StoreOwner StoreOwner @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+  StoreOwner StoreOwner @relation(fields: [storeSubdomain], references: [storeSubdomain], onDelete: Cascade)
 
   @@index([orderId])
   @@index([productId])
-  @@index([storeOwnerId])
+  @@index([storeSubdomain])
   @@map("order_items")
 }
 

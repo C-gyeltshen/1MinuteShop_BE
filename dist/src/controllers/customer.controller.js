@@ -1,197 +1,53 @@
-import { CustomerService } from "../services/customer.service.js";
 import { ZodError } from "zod";
-import { CreateCustomerSchema, UpdateCustomerSchema, UUIDSchema } from "../validators/customer.validation.js";
+import { CustomerService } from "../services/customer.service.js";
+import { createCustomerSchema } from "../validators/customer.validation.js";
 const customerService = new CustomerService();
 export class CustomerController {
-    /**
-     * Create a new customer
-     * POST /api/customers
-     */
     async createCustomer(c) {
         try {
             const body = await c.req.json();
-            // Validate request body
-            const validatedData = CreateCustomerSchema.parse(body);
-            const result = await customerService.createCustomer(validatedData);
-            return c.json({
-                success: result.success,
-                message: result.message,
-                data: result.data,
-            }, 201);
+            // 1. Validate the input data against the schema
+            const validatedData = await createCustomerSchema.parseAsync(body);
+            // 2. Call the service
+            const result = await customerService.CreateCustomer(validatedData);
+            // 3. Return successful response
+            return c.json(result, result.statusCode);
         }
         catch (error) {
+            // Handle Zod Validation Errors
             if (error instanceof ZodError) {
                 return c.json({
-                    success: false,
-                    message: "Validation error",
-                    // Fixed: use 'issues' instead of 'errors'
-                    errors: error.issues.map((err) => ({
-                        field: err.path.join("."),
-                        message: err.message,
-                    })),
+                    statusCode: 400,
+                    message: "Validation Error",
+                    errors: error.flatten().fieldErrors
                 }, 400);
             }
-            const statusCode = error.statusCode || 500;
+            // Handle errors thrown by the service (e.g., 409 Conflict)
+            if (error.statusCode) {
+                return c.json({
+                    statusCode: error.statusCode,
+                    message: error.message
+                }, error.statusCode);
+            }
+            // Handle unknown server errors
+            console.error("Error creating customer:", error);
             return c.json({
-                success: false,
-                message: error.message || "Internal server error",
-            }, statusCode);
+                statusCode: 500,
+                message: "Internal Server Error"
+            }, 500);
         }
     }
-    /**
-     * Get all customers with pagination
-     * GET /api/customers?page=1&limit=10&search=&sortBy=createdAt&sortOrder=desc
-     */
-    /**
-     * Get customer by ID
-     * GET /api/customers/:id
-     */
-    async getCustomerById(c) {
+    async getAllCustomers(c) {
         try {
-            const customerId = c.req.param("id");
-            // Validate UUID
-            UUIDSchema.parse(customerId);
-            const result = await customerService.getCustomerById(customerId);
-            return c.json({
-                success: result.success,
-                data: result.data,
-            }, 200);
+            const result = await customerService.GetAllCustomers();
+            return c.json(result, result.statusCode);
         }
         catch (error) {
-            if (error instanceof ZodError) {
-                return c.json({
-                    success: false,
-                    message: "Invalid customer ID format",
-                }, 400);
-            }
-            const statusCode = error.statusCode || 500;
+            console.error("Error fetching customers:", error);
             return c.json({
-                success: false,
-                message: error.message || "Internal server error",
-            }, statusCode);
-        }
-    }
-    /**
-     * Update customer
-     * PUT /api/customers/:id
-     */
-    async updateCustomer(c) {
-        try {
-            const customerId = c.req.param("id");
-            const body = await c.req.json();
-            // Validate UUID
-            UUIDSchema.parse(customerId);
-            // Validate request body
-            const validatedData = UpdateCustomerSchema.parse(body);
-            const result = await customerService.updateCustomer(customerId, validatedData);
-            return c.json({
-                success: result.success,
-                message: result.message,
-                data: result.data,
-            }, 200);
-        }
-        catch (error) {
-            if (error instanceof ZodError) {
-                return c.json({
-                    success: false,
-                    message: "Validation error",
-                    // Fixed: use 'issues' instead of 'errors'
-                    errors: error.issues.map((err) => ({
-                        field: err.path.join("."),
-                        message: err.message,
-                    })),
-                }, 400);
-            }
-            const statusCode = error.statusCode || 500;
-            return c.json({
-                success: false,
-                message: error.message || "Internal server error",
-            }, statusCode);
-        }
-    }
-    /**
-     * Delete customer
-     * DELETE /api/customers/:id
-     */
-    async deleteCustomer(c) {
-        try {
-            const customerId = c.req.param("id");
-            // Validate UUID
-            UUIDSchema.parse(customerId);
-            const result = await customerService.deleteCustomer(customerId);
-            return c.json({
-                success: result.success,
-                message: result.message,
-            }, 200);
-        }
-        catch (error) {
-            if (error instanceof ZodError) {
-                return c.json({
-                    success: false,
-                    message: "Invalid customer ID format",
-                }, 400);
-            }
-            const statusCode = error.statusCode || 500;
-            return c.json({
-                success: false,
-                message: error.message || "Internal server error",
-            }, statusCode);
-        }
-    }
-    /**
-     * Get customer statistics
-     * GET /api/customers/:id/stats
-     */
-    async getCustomerStats(c) {
-        try {
-            const customerId = c.req.param("id");
-            // Validate UUID
-            UUIDSchema.parse(customerId);
-            const result = await customerService.getCustomerStats(customerId);
-            return c.json({
-                success: result.success,
-                data: result.data,
-            }, 200);
-        }
-        catch (error) {
-            if (error instanceof ZodError) {
-                return c.json({
-                    success: false,
-                    message: "Invalid customer ID format",
-                }, 400);
-            }
-            const statusCode = error.statusCode || 500;
-            return c.json({
-                success: false,
-                message: error.message || "Internal server error",
-            }, statusCode);
-        }
-    }
-    /**
-     * Search customer by email
-     * GET /api/customers/search/email?email=test@example.com
-     */
-    async searchCustomerByEmail(c) {
-        try {
-            const email = c.req.query("email");
-            if (!email) {
-                return c.json({
-                    success: false,
-                    message: "Email query parameter is required",
-                }, 400);
-            }
-            const result = await customerService.searchCustomerByEmail(email);
-            return c.json({
-                success: result.success,
-                data: result.data,
-            }, 200);
-        }
-        catch (error) {
-            const statusCode = error.statusCode || 500;
-            return c.json({
-                success: false,
-                message: error.message || "Internal server error",
-            }, statusCode);
+                statusCode: 500,
+                message: "Internal Server Error"
+            }, 500);
         }
     }
 }

@@ -21,4 +21,3 @@ productRoutes.patch("/:productId/stock", (c) => productController.updateStock(c)
 // GET - Search products
 productRoutes.get("/search", (c) => productController.searchProducts(c));
 export default productRoutes;
-// productRoutes

@@ -1,91 +1,43 @@
 import { z } from "zod";
 import { OrderStatus, PaymentStatus } from "../types/orders.types.js";
 
-/**
- * Enum schemas
- * Udated to use nativeEnum to match TypeScript Enum types in Service/Controller
- */
-export const OrderStatusEnum = z.nativeEnum(OrderStatus);
+export const createOrderItemSchema = z.object({
+  productId: z.string().uuid("Invalid Product UUID"),
+  quantity: z.number().int().min(1, 'Quantity must be at least 1').max(999, 'Quantity cannot exceed 999'),
+});
 
-export const PaymentStatusEnum = z.nativeEnum(PaymentStatus);
-
-/**
- * Schema for order item input
- */
-export const OrderItemInputSchema = z.object({
-  productId: z.string().uuid("Invalid product ID"),
-  quantity: z.number().int().min(1, "Quantity must be at least 1"),
+export const validatedOrderItemSchema = z.object({
+  productId: z.string().uuid("Invalid Product UUID"),
+  productName: z.string().min(1, "Product name is required"),
+  quantity: z.number().int().min(1, 'Quantity must be at least 1'),
   unitPrice: z.number().positive("Unit price must be positive"),
+  storeSubdomain: z.string().min(1, 'Store subdomain is required'),
 });
 
-/**
- * Schema for creating a new order
- */
-export const CreateOrderSchema = z.object({
-  storeOwnerId: z.string().uuid("Invalid store owner ID"),
+
+export const createOrderSchema = z.object({
+  storeSubdomain: z.string().min(1, 'Store subdomain is required'),
   customerId: z.string().uuid("Invalid customer ID"),
+  customerName: z.string().min(1).max(255).optional(),
+  email: z.string().email().optional(),
+  phoneNumber: z.string().min(1).max(20).optional(),
   items: z
-    .array(OrderItemInputSchema)
-    .min(1, "Order must have at least one item"),
-  customerNotes: z.string().max(500, "Customer notes must be at most 500 characters").optional(),
-  paymentScreenshotUrl: z.string().url("Invalid payment screenshot URL").optional(),
+    .array(createOrderItemSchema)
+    .min(1, 'At least one item is required')
+    .max(50, 'Maximum 50 items per order'),
+  paymentScreenshotUrl: z.string().url('Invalid payment screenshot URL'),
+  shippingAddress: z.string().min(1, 'Shipping address is required').max(500),
+  shippingCity: z.string().min(1, 'City is required').max(100),
+  shippingState: z.string().min(1, 'State is required').max(100),
+  shippingPostalCode: z.string().min(1, 'Postal code is required').max(20),
+  shippingCountry: z.string().min(1, 'Country is required').max(100),
+  customerNotes: z.string().max(1000).optional(),
 });
 
-/**
- * Schema for updating an order
- */
-export const UpdateOrderSchema = z.object({
-  orderStatus: OrderStatusEnum.optional(),
-  paymentStatus: PaymentStatusEnum.optional(),
-  paymentScreenshotUrl: z.string().url("Invalid payment screenshot URL").optional().nullable(),
-  customerNotes: z.string().max(500, "Customer notes must be at most 500 characters").optional().nullable(),
-});
 
-/**
- * Schema for updating order status only
- */
-export const UpdateOrderStatusSchema = z.object({
-  orderStatus: OrderStatusEnum,
-});
 
-/**
- * Schema for updating payment status
- */
-export const UpdatePaymentStatusSchema = z.object({
-  paymentStatus: PaymentStatusEnum,
-  paymentScreenshotUrl: z.string().url("Invalid payment screenshot URL").optional().nullable(),
-});
 
-/**
- * Schema for order filter parameters
- */
-export const OrderFilterSchema = z.object({
-  storeOwnerId: z.string().uuid("Invalid store owner ID").optional(),
-  customerId: z.string().uuid("Invalid customer ID").optional(),
-  orderStatus: OrderStatusEnum.optional(),
-  paymentStatus: PaymentStatusEnum.optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
-  page: z.number().int().positive().optional(),
-  limit: z.number().int().positive().max(100).optional(),
-  sortBy: z.enum(['orderNumber', 'totalAmount', 'orderStatus', 'paymentStatus', 'createdAt', 'updatedAt']).optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional(),
-  search: z.string().optional(),
-});
 
-/**
- * Schema for UUID validation
- */
-export const UUIDSchema = z.string().uuid("Invalid UUID format");
-
-/**
- * Schema for order number validation
- */
-export const OrderNumberSchema = z.string().min(1, "Order number is required");
-
-export type CreateOrderInput = z.infer<typeof CreateOrderSchema>;
-export type UpdateOrderInput = z.infer<typeof UpdateOrderSchema>;
-export type UpdateOrderStatusInput = z.infer<typeof UpdateOrderStatusSchema>;
-export type UpdatePaymentStatusInput = z.infer<typeof UpdatePaymentStatusSchema>;
-export type OrderItemInput = z.infer<typeof OrderItemInputSchema>;
-export type OrderFilterParams = z.infer<typeof OrderFilterSchema>;
+export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+export type CreateOrderItemInput = z.infer<typeof createOrderItemSchema>;
+export type ValidatedOrderItemInput = z.infer<typeof validatedOrderItemSchema>;

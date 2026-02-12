@@ -32,6 +32,3 @@ productRoutes.patch("/:productId/stock", (c) => productController.updateStock(c)
 productRoutes.get("/search", (c) => productController.searchProducts(c));
 
 export default productRoutes;
-
-
-// productRoutes

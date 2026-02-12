@@ -1,3 +1,4 @@
+// Enum interface
 export var OrderStatus;
 (function (OrderStatus) {
     OrderStatus["PENDING"] = "PENDING";

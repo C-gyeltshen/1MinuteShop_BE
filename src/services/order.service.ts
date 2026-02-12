@@ -1,373 +1,175 @@
+import { CustomerRepository } from "../repositories/customer.repository.js";
+import { ProductRepository } from "../repositories/product.repository.js";
 import { OrderRepository } from "../repositories/order.repository.js";
-import {
-  type CreateOrderInput,
-  type UpdateOrderInput,
-  type OrderFilterParams,
-  OrderStatus,
-  type PaymentStatus,
+import { StoreRepository } from "../repositories/store.repository.js";
+import type {
+  CreateOrderInput,
+  ValidatedOrderItem,
 } from "../types/orders.types.js";
 
+const customerRepository = new CustomerRepository();
+const productRepository = new ProductRepository();
 const orderRepository = new OrderRepository();
+const storeRepository = new StoreRepository();
 
 export class OrderService {
-  /**
-   * Create a new order
-   */
-  async createOrder(data: CreateOrderInput) {
-    // Validate store owner exists
-    const storeOwnerExists = await orderRepository.storeOwnerExists(data.storeOwnerId);
-    if (!storeOwnerExists) {
-      throw {
-        statusCode: 404,
-        message: "Store owner not found",
-      };
-    }
+  async create(data: CreateOrderInput) {
+    try {
+      // 1. Validate or create customer
+      let customer = await customerRepository.findCustomerById(data.customerId);
 
-    // Validate customer exists
-    const customerExists = await orderRepository.customerExists(data.customerId);
-    if (!customerExists) {
-      throw {
-        statusCode: 404,
-        message: "Customer not found",
-      };
-    }
+      if (!customer) {
+        // Check if customer data is provided for creation
+        if (!data.customerName || !data.email || !data.phoneNumber) {
+          throw {
+            statusCode: 400,
+            message:
+              "Customer not found and customer details not provided for creation",
+          };
+        }
 
-    // Validate all products and stock
-    for (const item of data.items) {
-      const validation = await orderRepository.validateProduct(
-        item.productId,
-        item.quantity
-      );
+        // Create customer
+        customer = await customerRepository.create({
+          customerName: data.customerName,
+          email: data.email,
+          phoneNumber: data.phoneNumber,
+        });
 
-      if (!validation.exists) {
+        if (!customer) {
+          throw {
+            statusCode: 500,
+            message: "Error creating customer",
+          };
+        }
+      }
+
+      // 2. Validate store exists and is active
+      const store = await storeRepository.findBySubDomain(data.storeSubdomain);
+
+      if (!store) {
         throw {
           statusCode: 404,
-          message: `Product with ID ${item.productId} not found`,
+          message: "Store not found",
         };
       }
 
-      if (!validation.hasStock) {
+      if (store.status !== "ACTIVE") {
         throw {
           statusCode: 400,
-          message: `Product "${validation.product?.productName}" does not have enough stock. Available: ${validation.product?.stockQuantity}, Requested: ${item.quantity}`,
+          message: "Store is not active",
         };
       }
+
+      // 3. Validate products and calculate totals
+      const validatedItems: ValidatedOrderItem[] = [];
+      let totalAmount = 0;
+
+      for (const item of data.items) {
+        const product = await productRepository.findById(item.productId);
+
+        if (!product) {
+          throw {
+            statusCode: 404,
+            message: `Product with ID ${item.productId} not found`,
+          };
+        }
+
+        if (!product.isActive) {
+          throw {
+            statusCode: 400,
+            message: `Product ${product.productName} is not available`,
+          };
+        }
+
+        if (product.stockQuantity < item.quantity) {
+          throw {
+            statusCode: 400,
+            message: `Insufficient stock for ${product.productName}. Available: ${product.stockQuantity}, Requested: ${item.quantity}`,
+          };
+        }
+
+        // Calculate prices
+        const unitPrice = Number(product.price);
+        const itemTotal = unitPrice * item.quantity;
+        totalAmount += itemTotal;
+
+        validatedItems.push({
+          productId: item.productId,
+          productName: product.productName,
+          quantity: item.quantity,
+          unitPrice,
+          storeSubdomain: data.storeSubdomain,
+        });
+      }
+
+      // 4. Create order with transaction
+      const order = await orderRepository.createOrderWithItems({
+        storeSubdomain: data.storeSubdomain,
+        storeOwnerId: store.id,
+        customerId: data.customerId,
+        customerName: customer.customerName,
+        totalAmount,
+        items: validatedItems,
+        paymentScreenshotUrl: data.paymentScreenshotUrl,
+        shippingAddress: data.shippingAddress,
+        shippingCity: data.shippingCity,
+        shippingState: data.shippingState,
+        shippingPostalCode: data.shippingPostalCode,
+        shippingCountry: data.shippingCountry,
+        customerNotes: data.customerNotes,
+      });
+
+      return {
+        statusCode: 201,
+        message: "Order created successfully",
+        data: order,
+      };
+    } catch (error: any) {
+      // Re-throw custom errors
+      if (error.statusCode) {
+        throw error;
+      }
+
+      // Handle unexpected errors
+      console.error("Order service error:", error);
+      throw {
+        statusCode: 500,
+        message:
+          error.message ||
+          "An unexpected error occurred while creating the order",
+      };
     }
-
-    // Create the order
-    const order = await orderRepository.create(data);
-
-    // Update product stock
-    for (const item of data.items) {
-      await orderRepository.updateProductStock(item.productId, item.quantity);
-    }
-
-    return {
-      success: true,
-      message: "Order created successfully",
-      data: order,
-    };
   }
 
-  /**
-   * Get order by ID
-   */
-  async getOrderById(orderId: string) {
-    const order = await orderRepository.findById(orderId);
-
-    if (!order) {
+  async getAll() {
+    const allOrders = await orderRepository.getAll();
+    if (!allOrders) {
       throw {
         statusCode: 404,
-        message: "Order not found",
+        message: "error fetching all order data",
+      };
+    } else {
+      return {
+        statusCode: 200,
+        data: allOrders,
       };
     }
-
-    return {
-      success: true,
-      data: order,
-    };
   }
 
-  /**
-   * Get order by order number
-   */
-  async getOrderByNumber(storeOwnerId: string, orderNumber: string) {
-    const order = await orderRepository.findByOrderNumber(storeOwnerId, orderNumber);
-
-    if (!order) {
+  async getOrdersByStoreOwnerId(storeOwnerId: string) {
+    try {
+      const result = await orderRepository.findByStoreOwnerId(storeOwnerId);
+      return {
+        statusCode: 200,
+        message: "Orders retrieved successfully",
+        data: result,
+      };
+    } catch (error: any) {
+      console.error("Get orders error:", error);
       throw {
-        statusCode: 404,
-        message: "Order not found",
+        statusCode: 500,
+        message: error.message || "Failed to retrieve orders",
       };
     }
-
-    return {
-      success: true,
-      data: order,
-    };
-  }
-
-  /**
-   * Get all orders with filters
-   */
-  async getAllOrders(params: OrderFilterParams) {
-    const result = await orderRepository.findAll(params);
-
-    return {
-      success: true,
-      data: result,
-    };
-  }
-
-  /**
-   * Get orders for a customer
-   */
-  async getCustomerOrders(customerId: string, page = 1, limit = 10) {
-    const customerExists = await orderRepository.customerExists(customerId);
-    if (!customerExists) {
-      throw {
-        statusCode: 404,
-        message: "Customer not found",
-      };
-    }
-
-    const result = await orderRepository.findByCustomer(customerId, page, limit);
-
-    return {
-      success: true,
-      data: result,
-    };
-  }
-
-  /**
-   * Get orders for a store owner
-   */
-  async getStoreOrders(storeOwnerId: string, page = 1, limit = 10) {
-    const storeOwnerExists = await orderRepository.storeOwnerExists(storeOwnerId);
-    if (!storeOwnerExists) {
-      throw {
-        statusCode: 404,
-        message: "Store owner not found",
-      };
-    }
-
-    const result = await orderRepository.findByStoreOwner(storeOwnerId, page, limit);
-
-    return {
-      success: true,
-      data: result,
-    };
-  }
-
-  /**
-   * Update order
-   */
-  async updateOrder(orderId: string, data: UpdateOrderInput) {
-    const existingOrder = await orderRepository.findById(orderId);
-
-    if (!existingOrder) {
-      throw {
-        statusCode: 404,
-        message: "Order not found",
-      };
-    }
-
-    // If cancelling order, restore stock
-    if (data.orderStatus === 'CANCELLED' && existingOrder.orderStatus !== 'CANCELLED') {
-      await orderRepository.restoreProductStock(orderId);
-    }
-
-    const updatedOrder = await orderRepository.update(orderId, data);
-
-    return {
-      success: true,
-      message: "Order updated successfully",
-      data: updatedOrder,
-    };
-  }
-
-  /**
-   * Update order status
-   */
-  async updateOrderStatus(orderId: string, orderStatus: OrderStatus) {
-    const existingOrder = await orderRepository.findById(orderId);
-
-    if (!existingOrder) {
-      throw {
-        statusCode: 404,
-        message: "Order not found",
-      };
-    }
-
-    // Business rules for status transitions
-    const validTransitions: Record<OrderStatus, OrderStatus[]> = {
-      [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
-      [OrderStatus.CONFIRMED]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
-      [OrderStatus.PROCESSING]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
-      [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
-      [OrderStatus.DELIVERED]: [],
-      [OrderStatus.CANCELLED]: [],
-    };
-
-    const currentStatus = existingOrder.orderStatus as OrderStatus;
-    const allowedStatuses = validTransitions[currentStatus];
-
-    if (!allowedStatuses.includes(orderStatus)) {
-      throw {
-        statusCode: 400,
-        message: `Cannot transition from ${currentStatus} to ${orderStatus}`,
-      };
-    }
-
-    // If cancelling order, restore stock
-    if (orderStatus === 'CANCELLED') {
-      await orderRepository.restoreProductStock(orderId);
-    }
-
-    const updatedOrder = await orderRepository.updateStatus(orderId, orderStatus);
-
-    return {
-      success: true,
-      message: `Order status updated to ${orderStatus}`,
-      data: updatedOrder,
-    };
-  }
-
-  /**
-   * Update payment status
-   */
-  async updatePaymentStatus(
-    orderId: string,
-    paymentStatus: PaymentStatus,
-    paymentScreenshotUrl?: string | null
-  ) {
-    const existingOrder = await orderRepository.findById(orderId);
-
-    if (!existingOrder) {
-      throw {
-        statusCode: 404,
-        message: "Order not found",
-      };
-    }
-
-    const updatedOrder = await orderRepository.updatePaymentStatus(
-      orderId,
-      paymentStatus,
-      paymentScreenshotUrl
-    );
-
-    return {
-      success: true,
-      message: `Payment status updated to ${paymentStatus}`,
-      data: updatedOrder,
-    };
-  }
-
-  /**
-   * Cancel order
-   */
-  async cancelOrder(orderId: string) {
-    const existingOrder = await orderRepository.findById(orderId);
-
-    if (!existingOrder) {
-      throw {
-        statusCode: 404,
-        message: "Order not found",
-      };
-    }
-
-    if (existingOrder.orderStatus === 'DELIVERED') {
-      throw {
-        statusCode: 400,
-        message: "Cannot cancel a delivered order",
-      };
-    }
-
-    if (existingOrder.orderStatus === 'CANCELLED') {
-      throw {
-        statusCode: 400,
-        message: "Order is already cancelled",
-      };
-    }
-
-    // Restore stock
-    await orderRepository.restoreProductStock(orderId);
-
-    const updatedOrder = await orderRepository.updateStatus(orderId, OrderStatus.CANCELLED);
-
-    return {
-      success: true,
-      message: "Order cancelled successfully",
-      data: updatedOrder,
-    };
-  }
-
-  /**
-   * Delete order (admin only - use with caution)
-   */
-  async deleteOrder(orderId: string) {
-    const existingOrder = await orderRepository.findById(orderId);
-
-    if (!existingOrder) {
-      throw {
-        statusCode: 404,
-        message: "Order not found",
-      };
-    }
-
-    // Only allow deletion of cancelled orders
-    if (existingOrder.orderStatus !== 'CANCELLED') {
-      throw {
-        statusCode: 400,
-        message: "Only cancelled orders can be deleted. Please cancel the order first.",
-      };
-    }
-
-    await orderRepository.delete(orderId);
-
-    return {
-      success: true,
-      message: "Order deleted successfully",
-    };
-  }
-
-  /**
-   * Get store statistics
-   */
-  async getStoreStatistics(storeOwnerId: string) {
-    const storeOwnerExists = await orderRepository.storeOwnerExists(storeOwnerId);
-    if (!storeOwnerExists) {
-      throw {
-        statusCode: 404,
-        message: "Store owner not found",
-      };
-    }
-
-    const stats = await orderRepository.getStoreStatistics(storeOwnerId);
-
-    return {
-      success: true,
-      data: stats,
-    };
-  }
-
-  /**
-   * Get customer order summary
-   */
-  async getCustomerOrderSummary(customerId: string) {
-    const customerExists = await orderRepository.customerExists(customerId);
-    if (!customerExists) {
-      throw {
-        statusCode: 404,
-        message: "Customer not found",
-      };
-    }
-
-    const summary = await orderRepository.getCustomerOrderSummary(customerId);
-
-    return {
-      success: true,
-      data: summary,
-    };
   }
 }
