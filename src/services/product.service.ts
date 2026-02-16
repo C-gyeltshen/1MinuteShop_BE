@@ -53,8 +53,8 @@ export class ProductService {
 
     if (products.length === 0) {
       throw {
-        statusCode: 404,
-        message: "Pro",
+        statusCode: 200,
+        message: "No product available",
       };
     }
 
