@@ -41,8 +41,8 @@ export class ProductService {
         const products = await productRepository.findBySubdomain(subdomain);
         if (products.length === 0) {
             throw {
-                statusCode: 404,
-                message: "Pro",
+                statusCode: 200,
+                message: "No product available",
             };
         }
         return {

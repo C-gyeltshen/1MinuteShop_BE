@@ -10,4 +10,11 @@ upload.post('/image', uploadController.uploadImage);
 // DELETE /api/upload/image
 upload.delete('/image', uploadController.deleteImage);
 
+// POST /api/upload/payment-screenshot
+upload.post('/payment-screenshot', uploadController.uploadScreenshot);
+
+// DELETE /api/upload/payment-screenshot
+upload.delete('/payment-screenshot', uploadController.deleteScreenshot);
+
+
 export default upload;

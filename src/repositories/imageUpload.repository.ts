@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const BUCKET_NAME = '1MinuteShopBucket';
+const PAYMENTS_FOLDER = 'payments';
 
 export class ImageUploadRepository {
   private supabaseAdmin: SupabaseClient;
@@ -124,4 +125,75 @@ export class ImageUploadRepository {
       throw error;
     }
   }
+
+
+/////payment image upload
+  async uploadPaymentScreenshot(data: {
+    buffer: Buffer;
+    fileName: string;
+    fileType?: string;
+    userId: string;
+    orderId?: string;
+  }) {
+    try {
+      const fileExt = data.fileName.split('.').pop()?.toLowerCase() || 'jpg';
+      const timestamp = Date.now();
+      // Include orderId in filename if provided for traceability
+      const uniqueFileName = data.orderId
+        ? `${data.userId}-order-${data.orderId}-${timestamp}.${fileExt}`
+        : `${data.userId}-${timestamp}.${fileExt}`;
+      const filePath = `${PAYMENTS_FOLDER}/${uniqueFileName}`;
+
+      console.log(`[PaymentUploadRepository] Uploading to: ${filePath}`);
+      console.log(`[PaymentUploadRepository] Buffer size: ${data.buffer.length} bytes`);
+
+      const { data: uploadData, error } = await this.supabaseAdmin.storage
+        .from(BUCKET_NAME)
+        .upload(filePath, data.buffer, {
+          contentType: data.fileType || 'image/jpeg',
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) {
+        console.error('[PaymentUploadRepository] Supabase error:', error);
+        throw new Error(`Upload failed: ${error.message}`);
+      }
+
+      console.log('[PaymentUploadRepository] Upload successful:', uploadData);
+
+      const {
+        data: { publicUrl },
+      } = this.supabaseAdmin.storage.from(BUCKET_NAME).getPublicUrl(filePath);
+
+      return {
+        url: publicUrl,
+        path: filePath,
+      };
+    } catch (error: any) {
+      console.error('[PaymentUploadRepository] Error:', error);
+      throw error;
+    }
+  }
+
+  async deletePaymentScreenshot(path: string) {
+    try {
+      console.log(`[PaymentUploadRepository] Deleting: ${path}`);
+
+      const { error } = await this.supabaseAdmin.storage
+        .from(BUCKET_NAME)
+        .remove([path]);
+
+      if (error) {
+        console.error('[PaymentUploadRepository] Supabase error:', error);
+        throw new Error(`Delete failed: ${error.message}`);
+      }
+
+      console.log('[PaymentUploadRepository] Delete successful');
+    } catch (error: any) {
+      console.error('[PaymentUploadRepository] Error:', error);
+      throw error;
+    }
+  }
+
 }

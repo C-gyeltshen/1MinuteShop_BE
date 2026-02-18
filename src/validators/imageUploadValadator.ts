@@ -20,7 +20,22 @@ export const deleteImageSchema = z.object({
 });
 
 /**
- * Type inference from schemas
+ * Type inference from payment image upload schemas
  */
+
+export const uploadPaymentScreenshotSchema = z.object({
+  file: z.string().min(1, 'File is required'),
+  fileName: z.string().min(1, 'File name is required'),
+  fileType: z.string().optional(),
+  userId: z.string().min(1, 'User ID is required'),
+  orderId: z.string().optional(),
+});
+
+export const deletePaymentScreenshotSchema = z.object({
+  path: z.string().min(1, 'Path is required'),
+});
+
 export type UploadImageRequest = z.infer<typeof uploadImageSchema>;
 export type DeleteImageRequest = z.infer<typeof deleteImageSchema>;
+export type UploadPaymentScreenshotRequest = z.infer<typeof uploadPaymentScreenshotSchema>;
+export type DeletePaymentScreenshotRequest = z.infer<typeof deletePaymentScreenshotSchema>;

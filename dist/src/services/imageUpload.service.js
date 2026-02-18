@@ -1,4 +1,11 @@
 import { ImageUploadRepository } from "../repositories/imageUpload.repository.js";
+const ALLOWED_TYPES = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+    'image/avif',
+];
 export class ImageUploadService {
     uploadRepository;
     constructor() {
@@ -71,6 +78,46 @@ export class ImageUploadService {
         }
         catch (error) {
             console.error("[UploadService] Error updating image:", error);
+            throw error;
+        }
+    }
+    async uploadPaymentScreenshot(data) {
+        try {
+            console.log(`[PaymentUploadService] Uploading screenshot for user: ${data.userId}`);
+            // Strip base64 prefix and create buffer
+            const base64Data = data.file.replace(/^data:image\/\w+;base64,/, '');
+            const buffer = Buffer.from(base64Data, 'base64');
+            const fileSizeInMB = buffer.length / (1024 * 1024);
+            if (fileSizeInMB > 10) {
+                throw new Error('File size must be less than 10MB');
+            }
+            const normalizedFileType = data.fileType?.toLowerCase();
+            if (normalizedFileType && !ALLOWED_TYPES.includes(normalizedFileType)) {
+                throw new Error(`Invalid file type: ${data.fileType}. Allowed types: JPEG, PNG, WEBP, AVIF`);
+            }
+            const result = await this.uploadRepository.uploadPaymentScreenshot({
+                buffer,
+                fileName: data.fileName,
+                fileType: normalizedFileType,
+                userId: data.userId,
+                orderId: data.orderId,
+            });
+            console.log(`[PaymentUploadService] Upload successful: ${result.url}`);
+            return result;
+        }
+        catch (error) {
+            console.error('[PaymentUploadService] Error:', error);
+            throw error;
+        }
+    }
+    async deletePaymentScreenshot(path) {
+        try {
+            console.log(`[PaymentUploadService] Deleting screenshot: ${path}`);
+            await this.uploadRepository.deletePaymentScreenshot(path);
+            console.log('[PaymentUploadService] Delete successful');
+        }
+        catch (error) {
+            console.error('[PaymentUploadService] Error:', error);
             throw error;
         }
     }
