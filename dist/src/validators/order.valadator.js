@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { OrderStatus, PaymentStatus } from "../types/orders.types.js";
 export const createOrderItemSchema = z.object({
     productId: z.string().uuid("Invalid Product UUID"),
     quantity: z.number().int().min(1, 'Quantity must be at least 1').max(999, 'Quantity cannot exceed 999'),
@@ -28,4 +27,13 @@ export const createOrderSchema = z.object({
     shippingPostalCode: z.string().min(1, 'Postal code is required').max(20),
     shippingCountry: z.string().min(1, 'Country is required').max(100),
     customerNotes: z.string().max(1000).optional(),
+});
+// Update status schemas
+export const updateOrderStatusSchema = z.object({
+    orderStatus: z.enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'], { message: 'Invalid order status' }),
+});
+export const updatePaymentStatusSchema = z.object({
+    paymentStatus: z.enum(['PENDING', 'RECEIVED', 'FAILED'], {
+        message: 'Invalid payment status',
+    }),
 });

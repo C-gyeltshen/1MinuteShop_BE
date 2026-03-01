@@ -143,6 +143,16 @@ export class StoreOwnerController {
             return c.json({ success: false, error: error.message }, 404);
         }
     }
+    async getStoreData(c) {
+        try {
+            const subDomain = c.req.param("subDomain");
+            const result = await storeOwnerService.getStoreData(subDomain);
+            return c.json({ success: true, data: result }, 200);
+        }
+        catch (error) {
+            return c.json({ success: false, error: error.message }, 404);
+        }
+    }
     extractCookie(cookieHeader, name) {
         if (!cookieHeader)
             return null;

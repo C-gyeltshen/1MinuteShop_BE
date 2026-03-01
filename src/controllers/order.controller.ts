@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { OrderService } from "../services/order.service.js";
-import { createOrderSchema } from "../validators/order.valadator.js";
+import { createOrderSchema, updateOrderStatusSchema, updatePaymentStatusSchema } from "../validators/order.valadator.js";
 import type { Context } from "hono";
 
 const orderService = new OrderService();
@@ -21,7 +21,7 @@ export class OrderController {
           message: result.message,
           data: result.data,
         },
-        result.statusCode as any
+        result.statusCode as any,
       );
     } catch (error) {
       return this.handleError(c, error);
@@ -37,7 +37,7 @@ export class OrderController {
           statusCode: 200,
           data: result.data,
         },
-        result.statusCode as any
+        result.statusCode as any,
       );
     } catch (error) {
       return this.handleError(c, error);
@@ -46,7 +46,7 @@ export class OrderController {
 
   async getOrder(c: Context) {
     try {
-      const storeOwnerId = c.req.param("id"); // Changed from "storeOwnerId" to "id" to match route param
+      const storeOwnerId = c.req.param("id");
 
       const result = await orderService.getOrdersByStoreOwnerId(storeOwnerId);
       return c.json(
@@ -55,7 +55,7 @@ export class OrderController {
           message: result.message,
           data: result.data,
         },
-        result.statusCode as any
+        result.statusCode as any,
       );
     } catch (error) {
       return this.handleError(c, error);
@@ -74,7 +74,7 @@ export class OrderController {
             message: err.message,
           })),
         },
-        400
+        400,
       );
     }
 
@@ -85,7 +85,7 @@ export class OrderController {
           success: false,
           message: (error as any).message || "An error occurred",
         },
-        (error as any).statusCode || 500
+        (error as any).statusCode || 500,
       );
     }
 
@@ -96,7 +96,76 @@ export class OrderController {
         success: false,
         message: "An unexpected error occurred",
       },
-      500
+      500,
     );
+  }
+  async updateOrderStatus(c: Context) {
+    try {
+      const orderId = c.req.param("id");
+
+      if (!orderId) {
+        return c.json(
+          {
+            success: false,
+            message: "Order ID is required",
+          },
+          400,
+        );
+      }
+
+      const body = await c.req.json();
+      const validatedInput = updateOrderStatusSchema.parse(body);
+
+      const result = await orderService.updateOrderStatus(
+        orderId,
+        validatedInput,
+      );
+
+      return c.json(
+        {
+          success: true,
+          message: result.message,
+          data: result.data,
+        },
+        result.statusCode as any,
+      );
+    } catch (error) {
+      return this.handleError(c, error);
+    }
+  }
+
+  async updatePaymentStatus(c: Context) {
+    try {
+      const orderId = c.req.param("id");
+
+      if (!orderId) {
+        return c.json(
+          {
+            success: false,
+            message: "Order ID is required",
+          },
+          400,
+        );
+      }
+
+      const body = await c.req.json();
+      const validatedInput = updatePaymentStatusSchema.parse(body);
+
+      const result = await orderService.updatePaymentStatus(
+        orderId,
+        validatedInput,
+      );
+
+      return c.json(
+        {
+          success: true,
+          message: result.message,
+          data: result.data,
+        },
+        result.statusCode as any,
+      );
+    } catch (error) {
+      return this.handleError(c, error);
+    }
   }
 }

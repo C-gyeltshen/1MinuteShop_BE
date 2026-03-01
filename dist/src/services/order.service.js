@@ -2,10 +2,12 @@ import { CustomerRepository } from "../repositories/customer.repository.js";
 import { ProductRepository } from "../repositories/product.repository.js";
 import { OrderRepository } from "../repositories/order.repository.js";
 import { StoreRepository } from "../repositories/store.repository.js";
+import { StoreOwnerRepository } from "../repositories/storeOwner.repository.js";
 const customerRepository = new CustomerRepository();
 const productRepository = new ProductRepository();
 const orderRepository = new OrderRepository();
 const storeRepository = new StoreRepository();
+const storeOwnerRepository = new StoreOwnerRepository();
 export class OrderService {
     async create(data) {
         try {
@@ -146,6 +148,96 @@ export class OrderService {
             throw {
                 statusCode: 500,
                 message: error.message || "Failed to retrieve orders",
+            };
+        }
+    }
+    async updateOrderStatus(orderId, data) {
+        try {
+            // Validate order exists
+            const order = await orderRepository.exists(orderId);
+            if (!order) {
+                throw {
+                    statusCode: 404,
+                    message: "Order not found",
+                };
+            }
+            // Update order status
+            const updatedOrder = await orderRepository.updateOrderStatus(orderId, data.orderStatus);
+            return {
+                statusCode: 200,
+                message: "Order status updated successfully",
+                data: {
+                    orderId: updatedOrder.id,
+                    orderNumber: updatedOrder.orderNumber,
+                    orderStatus: updatedOrder.orderStatus,
+                    paymentStatus: updatedOrder.paymentStatus,
+                    totalAmount: Number(updatedOrder.totalAmount),
+                    customer: updatedOrder.customer,
+                    items: updatedOrder.orderItems.map((item) => ({
+                        productId: item.productId,
+                        productName: item.product.productName,
+                        productImage: item.product.productImageUrl,
+                        quantity: item.quantity,
+                        unitPrice: Number(item.unitPrice),
+                    })),
+                    updatedAt: updatedOrder.updatedAt,
+                },
+            };
+        }
+        catch (error) {
+            if (error.statusCode) {
+                throw error;
+            }
+            console.error("Order service error:", error);
+            throw {
+                statusCode: 500,
+                message: error.message ||
+                    "An unexpected error occurred while updating order status",
+            };
+        }
+    }
+    async updatePaymentStatus(orderId, data) {
+        try {
+            // Validate order exists
+            const order = await orderRepository.findById(orderId);
+            if (!order) {
+                throw {
+                    statusCode: 404,
+                    message: "Order not found",
+                };
+            }
+            // Update payment status
+            const updatedOrder = await orderRepository.updatePaymentStatus(orderId, data.paymentStatus);
+            return {
+                statusCode: 200,
+                message: "Payment status updated successfully",
+                data: {
+                    orderId: updatedOrder.id,
+                    orderNumber: updatedOrder.orderNumber,
+                    orderStatus: updatedOrder.orderStatus,
+                    paymentStatus: updatedOrder.paymentStatus,
+                    totalAmount: Number(updatedOrder.totalAmount),
+                    customer: updatedOrder.customer,
+                    items: updatedOrder.orderItems.map((item) => ({
+                        productId: item.productId,
+                        productName: item.product.productName,
+                        productImage: item.product.productImageUrl,
+                        quantity: item.quantity,
+                        unitPrice: Number(item.unitPrice),
+                    })),
+                    updatedAt: updatedOrder.updatedAt,
+                },
+            };
+        }
+        catch (error) {
+            if (error.statusCode) {
+                throw error;
+            }
+            console.error("Order service error:", error);
+            throw {
+                statusCode: 500,
+                message: error.message ||
+                    "An unexpected error occurred while updating payment status",
             };
         }
     }

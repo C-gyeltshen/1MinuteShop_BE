@@ -6,6 +6,7 @@ export class OrderRepository {
             const order = await tx.order.create({
                 data: {
                     storeSubdomain: data.storeSubdomain,
+                    storeOwnerId: data.storeOwnerId,
                     customerId: data.customerId,
                     totalAmount: data.totalAmount,
                     paymentScreenshotUrl: data.paymentScreenshotUrl,
@@ -100,9 +101,7 @@ export class OrderRepository {
     async findByStoreOwnerId(storeOwnerId) {
         return await prisma.order.findMany({
             where: {
-                StoreOwner: {
-                    id: storeOwnerId
-                }
+                storeOwnerId: storeOwnerId,
             },
             select: {
                 id: true,
@@ -119,12 +118,105 @@ export class OrderRepository {
                         product: {
                             select: {
                                 productName: true,
-                                productImageUrl: true
-                            }
-                        }
-                    }
-                }
-            }
+                                productImageUrl: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    }
+    async CountOrder(subDomain) {
+        return await prisma.order.count({
+            where: {
+                storeSubdomain: subDomain,
+            },
+        });
+    }
+    async findById(orderId) {
+        return await prisma.order.findUnique({
+            where: { id: orderId },
+            include: {
+                orderItems: {
+                    include: {
+                        product: {
+                            select: {
+                                id: true,
+                                productName: true,
+                                productImageUrl: true,
+                            },
+                        },
+                    },
+                },
+                customer: {
+                    select: {
+                        id: true,
+                        customerName: true,
+                        email: true,
+                        phoneNumber: true,
+                    },
+                },
+            },
+        });
+    }
+    async exists(orderId) {
+        return await prisma.order.findUnique({
+            where: { id: orderId },
+            select: { id: true }, // Only select the ID for existence check
+        });
+    }
+    async updateOrderStatus(orderId, orderStatus) {
+        return await prisma.order.update({
+            where: { id: orderId },
+            data: { orderStatus },
+            include: {
+                orderItems: {
+                    include: {
+                        product: {
+                            select: {
+                                id: true,
+                                productName: true,
+                                productImageUrl: true,
+                            },
+                        },
+                    },
+                },
+                customer: {
+                    select: {
+                        id: true,
+                        customerName: true,
+                        email: true,
+                        phoneNumber: true,
+                    },
+                },
+            },
+        });
+    }
+    async updatePaymentStatus(orderId, paymentStatus) {
+        return await prisma.order.update({
+            where: { id: orderId },
+            data: { paymentStatus },
+            include: {
+                orderItems: {
+                    include: {
+                        product: {
+                            select: {
+                                id: true,
+                                productName: true,
+                                productImageUrl: true,
+                            },
+                        },
+                    },
+                },
+                customer: {
+                    select: {
+                        id: true,
+                        customerName: true,
+                        email: true,
+                        phoneNumber: true,
+                    },
+                },
+            },
         });
     }
 }

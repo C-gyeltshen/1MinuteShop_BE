@@ -27,12 +27,12 @@ export class StoreOwnerRepository {
         id: true,
         status: true,
         storeSubdomain: true,
-        storeName:true,
+        storeName: true,
         ownerName: true,
         email: true,
         storeUrl: true,
-        createdAt:true
-      }
+        createdAt: true,
+      },
     });
   }
 
@@ -176,8 +176,14 @@ export class StoreOwnerRepository {
   // others
 
   async findSubDomain(storeSubdomain: string) {
-    return await prisma.storeOwner.findUnique({
+    return await prisma.storeOwner.findFirst({
       where: { storeSubdomain },
+      select: {
+        id: true,
+        storeName: true,
+        storeSubdomain: true,
+        storeUrl: true,
+      },
     });
   }
 
@@ -217,5 +223,4 @@ export class StoreOwnerRepository {
 
     return false;
   }
-
 }

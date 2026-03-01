@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { OrderService } from "../services/order.service.js";
-import { createOrderSchema } from "../validators/order.valadator.js";
+import { createOrderSchema, updateOrderStatusSchema, updatePaymentStatusSchema } from "../validators/order.valadator.js";
 const orderService = new OrderService();
 export class OrderController {
     async createOrder(c) {
@@ -35,7 +35,7 @@ export class OrderController {
     }
     async getOrder(c) {
         try {
-            const storeOwnerId = c.req.param("id"); // Changed from "storeOwnerId" to "id" to match route param
+            const storeOwnerId = c.req.param("id");
             const result = await orderService.getOrdersByStoreOwnerId(storeOwnerId);
             return c.json({
                 success: true,
@@ -72,5 +72,49 @@ export class OrderController {
             success: false,
             message: "An unexpected error occurred",
         }, 500);
+    }
+    async updateOrderStatus(c) {
+        try {
+            const orderId = c.req.param("id");
+            if (!orderId) {
+                return c.json({
+                    success: false,
+                    message: "Order ID is required",
+                }, 400);
+            }
+            const body = await c.req.json();
+            const validatedInput = updateOrderStatusSchema.parse(body);
+            const result = await orderService.updateOrderStatus(orderId, validatedInput);
+            return c.json({
+                success: true,
+                message: result.message,
+                data: result.data,
+            }, result.statusCode);
+        }
+        catch (error) {
+            return this.handleError(c, error);
+        }
+    }
+    async updatePaymentStatus(c) {
+        try {
+            const orderId = c.req.param("id");
+            if (!orderId) {
+                return c.json({
+                    success: false,
+                    message: "Order ID is required",
+                }, 400);
+            }
+            const body = await c.req.json();
+            const validatedInput = updatePaymentStatusSchema.parse(body);
+            const result = await orderService.updatePaymentStatus(orderId, validatedInput);
+            return c.json({
+                success: true,
+                message: result.message,
+                data: result.data,
+            }, result.statusCode);
+        }
+        catch (error) {
+            return this.handleError(c, error);
+        }
     }
 }

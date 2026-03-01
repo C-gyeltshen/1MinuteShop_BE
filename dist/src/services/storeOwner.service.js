@@ -231,4 +231,11 @@ export class StoreOwnerService {
             return null;
         }
     }
+    async getStoreData(storeSubDomain) {
+        const storeData = await storeOwnerRepository.findSubDomain(storeSubDomain);
+        if (!storeData) {
+            throw new Error("Store not found");
+        }
+        return storeData;
+    }
 }

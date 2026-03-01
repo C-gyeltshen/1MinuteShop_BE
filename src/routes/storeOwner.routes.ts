@@ -29,8 +29,11 @@ storeOwnerRoutes.post("/logout", authMiddleware, (c) => controller.logout(c));
 // GET /api/store-owners/me - Get authenticated user profile
 storeOwnerRoutes.get("/me", authMiddleware, (c) => controller.getProfile(c));
 
-// GET /api/store-ownerxs/:id - Get store owner by ID (public)
+// GET /api/store-owners/:id - Get store owner by ID (public)
 storeOwnerRoutes.get("/:id", (c) => controller.getProfileById(c));
+
+// GET /api/store-owners/:id - Get store owner by ID (public)
+storeOwnerRoutes.get("/storeData/:subDomain", (c) => controller.getStoreData(c));
 
 // In routes file
 storeOwnerRoutes.post("/verify-subdomain", (c) => controller.subDomain(c));

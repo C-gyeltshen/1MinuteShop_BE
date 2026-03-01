@@ -25,8 +25,8 @@ export class StoreOwnerRepository {
                 ownerName: true,
                 email: true,
                 storeUrl: true,
-                createdAt: true
-            }
+                createdAt: true,
+            },
         });
     }
     async findByEmail(email) {
@@ -147,8 +147,14 @@ export class StoreOwnerRepository {
     }
     // others
     async findSubDomain(storeSubdomain) {
-        return await prisma.storeOwner.findUnique({
+        return await prisma.storeOwner.findFirst({
             where: { storeSubdomain },
+            select: {
+                id: true,
+                storeName: true,
+                storeSubdomain: true,
+                storeUrl: true,
+            },
         });
     }
     async isAccessTokenValid(storeOwnerId, token) {

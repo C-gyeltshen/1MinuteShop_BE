@@ -275,7 +275,7 @@ export class StoreOwnerService {
     if (!owner) throw new Error("Store owner not found");
 
     return {
-      id:owner.id,
+      id: owner.id,
       storeName: owner.storeName,
       ownerName: owner.ownerName,
       email: owner.email,
@@ -303,5 +303,13 @@ export class StoreOwnerService {
     } catch {
       return null;
     }
+  }
+
+  async getStoreData(storeSubDomain: string) {
+    const storeData = await storeOwnerRepository.findSubDomain(storeSubDomain);
+    if (!storeData) {
+      throw new Error("Store not found");
+    }
+    return storeData;
   }
 }

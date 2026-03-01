@@ -4,13 +4,18 @@ import { OrderRepository } from "../repositories/order.repository.js";
 import { StoreRepository } from "../repositories/store.repository.js";
 import type {
   CreateOrderInput,
+  OrderStatus,
+  PaymentStatus,
   ValidatedOrderItem,
 } from "../types/orders.types.js";
+import { StoreOwnerRepository } from "../repositories/storeOwner.repository.js";
+import type { UpdateOrderStatusInput, UpdatePaymentStatusInput } from "../validators/order.valadator.js";
 
 const customerRepository = new CustomerRepository();
 const productRepository = new ProductRepository();
 const orderRepository = new OrderRepository();
 const storeRepository = new StoreRepository();
+const storeOwnerRepository = new StoreOwnerRepository();
 
 export class OrderService {
   async create(data: CreateOrderInput) {
@@ -172,4 +177,113 @@ export class OrderService {
       };
     }
   }
+
+  async updateOrderStatus(orderId: string, data: UpdateOrderStatusInput) {
+  try {
+    // Validate order exists
+    const order = await orderRepository.exists(orderId);
+
+    if (!order) {
+      throw {
+        statusCode: 404,
+        message: "Order not found",
+      };
+    }
+
+    // Update order status
+    const updatedOrder = await orderRepository.updateOrderStatus(
+      orderId,
+      data.orderStatus as OrderStatus
+    );
+
+    return {
+      statusCode: 200,
+      message: "Order status updated successfully",
+      data: {
+        orderId: updatedOrder.id,
+        orderNumber: updatedOrder.orderNumber,
+        orderStatus: updatedOrder.orderStatus,
+        paymentStatus: updatedOrder.paymentStatus,
+        totalAmount: Number(updatedOrder.totalAmount),
+        customer: updatedOrder.customer as any,
+        items: (updatedOrder.orderItems as any).map((item: any) => ({
+          productId: item.productId,
+          productName: item.product.productName,
+          productImage: item.product.productImageUrl,
+          quantity: item.quantity,
+          unitPrice: Number(item.unitPrice),
+        })),
+        updatedAt: updatedOrder.updatedAt,
+      },
+    };
+  } catch (error: any) {
+    if (error.statusCode) {
+      throw error;
+    }
+
+    console.error("Order service error:", error);
+    throw {
+      statusCode: 500,
+      message:
+        error.message ||
+        "An unexpected error occurred while updating order status",
+    };
+  }
+}
+
+async updatePaymentStatus(
+  orderId: string,
+  data: UpdatePaymentStatusInput
+) {
+  try {
+    // Validate order exists
+    const order = await orderRepository.findById(orderId);
+
+    if (!order) {
+      throw {
+        statusCode: 404,
+        message: "Order not found",
+      };
+    }
+
+    // Update payment status
+    const updatedOrder = await orderRepository.updatePaymentStatus(
+      orderId,
+      data.paymentStatus as PaymentStatus
+    );
+
+    return {
+      statusCode: 200,
+      message: "Payment status updated successfully",
+      data: {
+        orderId: updatedOrder.id,
+        orderNumber: updatedOrder.orderNumber,
+        orderStatus: updatedOrder.orderStatus,
+        paymentStatus: updatedOrder.paymentStatus,
+        totalAmount: Number(updatedOrder.totalAmount),
+        customer: updatedOrder.customer as any,
+        items: (updatedOrder.orderItems as any).map((item: any) => ({
+          productId: item.productId,
+          productName: item.product.productName,
+          productImage: item.product.productImageUrl,
+          quantity: item.quantity,
+          unitPrice: Number(item.unitPrice),
+        })),
+        updatedAt: updatedOrder.updatedAt,
+      },
+    };
+  } catch (error: any) {
+    if (error.statusCode) {
+      throw error;
+    }
+
+    console.error("Order service error:", error);
+    throw {
+      statusCode: 500,
+      message:
+        error.message ||
+        "An unexpected error occurred while updating payment status",
+    };
+  }
+}
 }

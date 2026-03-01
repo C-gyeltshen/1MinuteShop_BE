@@ -1,7 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
-import type {
-  CreateOrderWithItemsInput,
-} from "../types/orders.types.js";
+import type { CreateOrderWithItemsInput, OrderStatus, PaymentStatus } from "../types/orders.types.js";
 
 export class OrderRepository {
   async createOrderWithItems(data: CreateOrderWithItemsInput) {
@@ -10,6 +8,7 @@ export class OrderRepository {
       const order = await tx.order.create({
         data: {
           storeSubdomain: data.storeSubdomain,
+          storeOwnerId: data.storeOwnerId,
           customerId: data.customerId,
           totalAmount: data.totalAmount,
           paymentScreenshotUrl: data.paymentScreenshotUrl,
@@ -106,33 +105,129 @@ export class OrderRepository {
     return await prisma.order.findMany({});
   }
   async findByStoreOwnerId(storeOwnerId: string) {
-    return await prisma.order.findMany({
-      where: {
-        StoreOwner: {
-          id: storeOwnerId
-        }
+  return await prisma.order.findMany({
+    where: {
+      storeOwnerId: storeOwnerId, 
+    },
+    select: {
+      id: true,
+      orderNumber: true,
+      orderStatus: true,
+      paymentStatus: true,
+      totalAmount: true,
+      storeSubdomain: true,
+      orderItems: {
+        select: {
+          id: true,
+          quantity: true,
+          unitPrice: true,
+          product: {
+            select: {
+              productName: true,
+              productImageUrl: true,
+            },
+          },
+        },
       },
-      select: {
-        id: true,
-        orderNumber: true,
-        orderStatus: true,
-        paymentStatus: true,
-        totalAmount: true,
-        storeSubdomain: true,
+    },
+  });
+}
+
+  async CountOrder(subDomain: string) {
+    return await prisma.order.count({
+      where: {
+        storeSubdomain: subDomain,
+      },
+    });
+  }
+
+  async findById(orderId: string) {
+    return await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
         orderItems: {
-          select: {
-            id: true,
-            quantity: true,
-            unitPrice: true,
+          include: {
             product: {
               select: {
+                id: true,
                 productName: true,
-                productImageUrl: true
-              }
-            }
-          }
-        }
-      }
+                productImageUrl: true,
+              },
+            },
+          },
+        },
+        customer: {
+          select: {
+            id: true,
+            customerName: true,
+            email: true,
+            phoneNumber: true,
+          },
+        },
+      },
+    });
+  }
+
+  async exists(orderId: string) {
+  return await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { id: true }, // Only select the ID for existence check
+  });
+}
+
+  async updateOrderStatus(orderId: string, orderStatus: OrderStatus) {
+    return await prisma.order.update({
+      where: { id: orderId },
+      data: { orderStatus },
+      include: {
+        orderItems: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                productName: true,
+                productImageUrl: true,
+              },
+            },
+          },
+        },
+        customer: {
+          select: {
+            id: true,
+            customerName: true,
+            email: true,
+            phoneNumber: true,
+          },
+        },
+      },
+    });
+  }
+
+  async updatePaymentStatus(orderId: string, paymentStatus: PaymentStatus) {
+    return await prisma.order.update({
+      where: { id: orderId },
+      data: { paymentStatus },
+      include: {
+        orderItems: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                productName: true,
+                productImageUrl: true,
+              },
+            },
+          },
+        },
+        customer: {
+          select: {
+            id: true,
+            customerName: true,
+            email: true,
+            phoneNumber: true,
+          },
+        },
+      },
     });
   }
 }

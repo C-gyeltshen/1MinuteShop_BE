@@ -185,6 +185,16 @@ export class StoreOwnerController {
     }
   }
 
+  async getStoreData(c: Context){
+    try{
+      const subDomain = c.req.param("subDomain");
+      const result = await storeOwnerService.getStoreData(subDomain);
+      return c.json({success: true, data: result }, 200)
+    }catch(error: any){
+      return c.json({ success: false, error: error.message }, 404);
+    }
+  }
+
   private extractCookie(
     cookieHeader: string | undefined,
     name: string,
