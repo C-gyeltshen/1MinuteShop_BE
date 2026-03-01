@@ -114,6 +114,7 @@ export class OrderRepository {
       orderNumber: true,
       orderStatus: true,
       paymentStatus: true,
+      paymentScreenshotUrl: true,
       totalAmount: true,
       storeSubdomain: true,
       orderItems: {
