@@ -102,30 +102,53 @@ export class OrderRepository {
   }
 
   async getAll() {
-    return await prisma.order.findMany({});
+    return await prisma.order.findMany({
+      include: {
+        customer: {
+          select: {
+            id: true,
+            customerName: true,
+            email: true,
+            phoneNumber: true,
+          },
+        },
+        orderItems: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                productName: true,
+                productImageUrl: true,
+                price: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
   async findByStoreOwnerId(storeOwnerId: string) {
   return await prisma.order.findMany({
     where: {
       storeOwnerId: storeOwnerId, 
     },
-    select: {
-      id: true,
-      orderNumber: true,
-      orderStatus: true,
-      paymentStatus: true,
-      paymentScreenshotUrl: true,
-      totalAmount: true,
-      storeSubdomain: true,
-      orderItems: {
+    include: {
+      customer: {
         select: {
           id: true,
-          quantity: true,
-          unitPrice: true,
+          customerName: true,
+          email: true,
+          phoneNumber: true,
+        },
+      },
+      orderItems: {
+        include: {
           product: {
             select: {
+              id: true,
               productName: true,
               productImageUrl: true,
+              price: true,
             },
           },
         },

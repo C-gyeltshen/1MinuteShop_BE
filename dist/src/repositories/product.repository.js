@@ -83,8 +83,9 @@ export class ProductRepository {
         });
     }
     async delete(productId) {
-        return await prisma.product.delete({
+        return await prisma.product.update({
             where: { id: productId },
+            data: { isActive: false }
         });
     }
     // Search products by name or description

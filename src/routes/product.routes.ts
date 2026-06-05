@@ -16,11 +16,11 @@ productRoutes.get("/subdomain/:subdomain", (c) => productController.getProductsB
 // GET - Get single product
 productRoutes.get("/:productId", (c) => productController.getProduct(c));
 
-// PUT - Update product
-productRoutes.put("/:productId", (c) => productController.updateProduct(c));
+// PATCH - Update product
+productRoutes.patch("/:productId/store/:storeOwnerId", (c) => productController.updateProduct(c));
 
 // DELETE - Delete product
-productRoutes.delete("/:productId", (c) => productController.deleteProduct(c));
+productRoutes.delete("/:productId/store/:storeOwnerId", (c) => productController.deleteProduct(c));
 
 // PATCH - Toggle product status (active/inactive)
 productRoutes.patch("/:productId/status", (c) => productController.toggleStatus(c));

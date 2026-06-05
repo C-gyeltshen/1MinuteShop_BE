@@ -89,7 +89,7 @@ export class ProductController {
     async updateProduct(c) {
         try {
             const productId = c.req.param("productId");
-            const storeOwnerId = c.get("storeOwnerId");
+            const storeOwnerId = c.req.param("storeOwnerId");
             const body = await c.req.json();
             const result = await productService.updateProduct(productId, storeOwnerId, body);
             return c.json(result, 200);
@@ -104,7 +104,7 @@ export class ProductController {
     async deleteProduct(c) {
         try {
             const productId = c.req.param("productId");
-            const storeOwnerId = c.get("storeOwnerId");
+            const storeOwnerId = c.req.param("storeOwnerId");
             const result = await productService.deleteProduct(productId, storeOwnerId);
             return c.json(result, 200);
         }

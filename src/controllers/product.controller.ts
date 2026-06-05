@@ -124,7 +124,7 @@ export class ProductController {
   async updateProduct(c: Context) {
     try {
       const productId = c.req.param("productId");
-      const storeOwnerId = c.get("storeOwnerId");
+      const storeOwnerId = c.req.param("storeOwnerId");
       const body = await c.req.json();
 
       const result = await productService.updateProduct(
@@ -148,7 +148,7 @@ export class ProductController {
   async deleteProduct(c: Context) {
     try {
       const productId = c.req.param("productId");
-      const storeOwnerId = c.get("storeOwnerId");
+      const storeOwnerId = c.req.param("storeOwnerId");
 
       const result = await productService.deleteProduct(productId, storeOwnerId);
       return c.json(result, 200);

@@ -99,8 +99,9 @@ async findBySubdomain(subdomain: string) {
   }
 
   async delete(productId: string) {
-    return await prisma.product.delete({
+    return await prisma.product.update({
       where: { id: productId },
+      data: { isActive: false }
     });
   }
 
