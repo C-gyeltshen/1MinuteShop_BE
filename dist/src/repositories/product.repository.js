@@ -30,7 +30,7 @@ export class ProductRepository {
     }
     async findAllByStoreOwner(storeOwnerId) {
         return await prisma.product.findMany({
-            where: { storeOwnerId },
+            where: { storeOwnerId, isActive: true },
             orderBy: { createdAt: "desc" },
         });
     }
