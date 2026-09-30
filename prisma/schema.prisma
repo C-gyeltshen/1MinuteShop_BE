@@ -31,6 +31,7 @@ model StoreOwner {
   orders         Order[]
   orderItems     OrderItem[]
   storeSettings  StoreSettings?
+  telegramConnection TelegramConnection?
   categories     Category[]
   productReviews ProductReview[]
   activityLogs   ActivityLog[]
@@ -173,6 +174,26 @@ model OrderItem {
   @@index([productId])
   @@index([storeSubdomain])
   @@map("order_items")
+}
+
+// =====================================================
+// TELEGRAM ORDER NOTIFICATIONS
+// =====================================================
+
+model TelegramConnection {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeOwnerId         String    @unique @db.Uuid
+  chatId               String?
+  notificationsEnabled Boolean   @default(true)
+  linkToken            String?   @unique
+  linkTokenExpiresAt   DateTime? @db.Timestamptz(6)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  // Relations
+  StoreOwner StoreOwner @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+
+  @@map("telegram_connections")
 }
 
 // =====================================================

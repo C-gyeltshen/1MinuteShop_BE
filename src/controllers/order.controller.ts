@@ -28,13 +28,15 @@ export class OrderController {
     }
   }
 
-  async getAllOrder(c: Context) {
+  async getOrderConfirmation(c: Context) {
     try {
-      const result = await orderService.getAll();
+      const result = await orderService.getOrderConfirmation(
+        c.req.param("orderId"),
+      );
       return c.json(
         {
           success: true,
-          statusCode: 200,
+          message: result.message,
           data: result.data,
         },
         result.statusCode as any,
@@ -119,6 +121,7 @@ export class OrderController {
       const result = await orderService.updateOrderStatus(
         orderId,
         validatedInput,
+        c.get("user").id,
       );
 
       return c.json(
@@ -154,6 +157,7 @@ export class OrderController {
       const result = await orderService.updatePaymentStatus(
         orderId,
         validatedInput,
+        c.get("user").id,
       );
 
       return c.json(

@@ -5,6 +5,8 @@ import storeRoutes from "./store.routes.js";
 import uploadRoutes from "./imageUpload.routes.js";
 import customerRoutes from "./customer.routes.js";
 import orderRoutes from "./order.routes.js";
+import storeSettingsRoutes from "./storeSettings.routes.js";
+import telegramRoutes from "./telegram.routes.js";
 
 const router = new Hono();
 
@@ -14,5 +16,7 @@ router.route("/stores", storeRoutes);
 router.route('/upload', uploadRoutes);
 router.route('/orders', orderRoutes);
 router.route("/customers", customerRoutes)
+router.route("/store-settings", storeSettingsRoutes);
+router.route("/telegram", telegramRoutes);
 
 export default router;

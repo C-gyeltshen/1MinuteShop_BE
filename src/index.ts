@@ -48,13 +48,10 @@ app.use("*", async (c, next) => {
     c.req.header("origin") || "No origin header",
   );
 
-  const authHeader = c.req.header("Authorization");
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    const accessToken = authHeader.split(" ")[1];
-    console.log("🎫 Access Token:", accessToken);
-  } else {
-    console.log("🔑 No Bearer Token found in Authorization header");
-  }
+  console.log(
+    "🔐 Authorization header:",
+    c.req.header("Authorization") ? "present" : "absent",
+  );
   await next();
 });
 

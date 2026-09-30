@@ -166,7 +166,7 @@ export class ProductController {
   async toggleStatus(c: Context) {
     try {
       const productId = c.req.param("productId");
-      const storeOwnerId = c.get("storeOwnerId");
+      const storeOwnerId = c.get("user")?.id;
 
       const result = await productService.toggleProductStatus(
         productId,
@@ -188,7 +188,7 @@ export class ProductController {
   async updateStock(c: Context) {
     try {
       const productId = c.req.param("productId");
-      const storeOwnerId = c.get("storeOwnerId");
+      const storeOwnerId = c.get("user")?.id;
       const { quantity } = await c.req.json();
 
       if (typeof quantity !== "number") {

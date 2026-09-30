@@ -195,9 +195,23 @@ export class OrderRepository {
   async exists(orderId: string) {
   return await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true }, // Only select the ID for existence check
+    select: { id: true, storeOwnerId: true }, // ID + owner for existence/ownership checks
   });
 }
+
+  async findConfirmationById(orderId: string) {
+    return await prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        orderNumber: true,
+        totalAmount: true,
+        orderStatus: true,
+        paymentStatus: true,
+        createdAt: true,
+        customer: { select: { customerName: true, email: true } },
+      },
+    });
+  }
 
   async updateOrderStatus(orderId: string, orderStatus: OrderStatus) {
     return await prisma.order.update({

@@ -27,6 +27,10 @@ export class UploadController {
 
       const { file, fileName, fileType, userId } = validationResult.data;
 
+      if (userId !== c.get('user')?.id) {
+        return c.json({ success: false, message: 'Forbidden' }, 403);
+      }
+
       // Call service to handle upload
       const result = await this.uploadService.uploadProductImage({
         file,
@@ -72,6 +76,11 @@ export class UploadController {
       }
 
       const { path } = validationResult.data;
+
+      // Product images are stored as products/<ownerId>-<timestamp>.<ext>
+      if (!path.startsWith(`products/${c.get('user')?.id}-`)) {
+        return c.json({ success: false, message: 'Forbidden' }, 403);
+      }
 
       await this.uploadService.deleteProductImage(path);
 

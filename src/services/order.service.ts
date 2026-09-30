@@ -9,6 +9,7 @@ import type {
   ValidatedOrderItem,
 } from "../types/orders.types.js";
 import { StoreOwnerRepository } from "../repositories/storeOwner.repository.js";
+import { TelegramService } from "./telegram.service.js";
 import type { UpdateOrderStatusInput, UpdatePaymentStatusInput } from "../validators/order.valadator.js";
 
 const customerRepository = new CustomerRepository();
@@ -16,6 +17,7 @@ const productRepository = new ProductRepository();
 const orderRepository = new OrderRepository();
 const storeRepository = new StoreRepository();
 const storeOwnerRepository = new StoreOwnerRepository();
+const telegramService = new TelegramService();
 
 export class OrderService {
   async create(data: CreateOrderInput) {
@@ -124,6 +126,23 @@ export class OrderService {
         customerNotes: data.customerNotes,
       });
 
+      // Notify the store owner on Telegram. Not awaited: the order is already
+      // committed, so a Telegram failure must never affect the customer's checkout.
+      void telegramService
+        .notifyNewOrder(store.id, {
+          storeName: store.storeName,
+          orderNumber: order.orderNumber,
+          totalAmount: order.totalAmount,
+          customerName: order.customer.customerName,
+          customerPhone: order.customer.phoneNumber,
+          city: order.shipping.city,
+          items: order.items.map((item) => ({
+            productName: item.productName,
+            quantity: item.quantity,
+          })),
+        })
+        .catch((err) => console.error("Order notification failed:", err?.message ?? err));
+
       return {
         statusCode: 201,
         message: "Order created successfully",
@@ -178,12 +197,38 @@ export class OrderService {
     }
   }
 
-  async updateOrderStatus(orderId: string, data: UpdateOrderStatusInput) {
-  try {
-    // Validate order exists
-    const order = await orderRepository.exists(orderId);
+  async getOrderConfirmation(orderId: string) {
+    const order = await orderRepository.findConfirmationById(orderId);
 
     if (!order) {
+      throw { statusCode: 404, message: "Order not found" };
+    }
+
+    return {
+      statusCode: 200,
+      message: "Order retrieved successfully",
+      data: {
+        orderNumber: order.orderNumber,
+        totalAmount: Number(order.totalAmount),
+        orderStatus: order.orderStatus,
+        paymentStatus: order.paymentStatus,
+        customerName: order.customer.customerName,
+        email: order.customer.email,
+        createdAt: order.createdAt,
+      },
+    };
+  }
+
+  async updateOrderStatus(
+    orderId: string,
+    data: UpdateOrderStatusInput,
+    storeOwnerId: string,
+  ) {
+  try {
+    // Validate order exists and belongs to the requesting store owner
+    const order = await orderRepository.exists(orderId);
+
+    if (!order || order.storeOwnerId !== storeOwnerId) {
       throw {
         statusCode: 404,
         message: "Order not found",
@@ -233,13 +278,14 @@ export class OrderService {
 
 async updatePaymentStatus(
   orderId: string,
-  data: UpdatePaymentStatusInput
+  data: UpdatePaymentStatusInput,
+  storeOwnerId: string,
 ) {
   try {
-    // Validate order exists
+    // Validate order exists and belongs to the requesting store owner
     const order = await orderRepository.findById(orderId);
 
-    if (!order) {
+    if (!order || order.storeOwnerId !== storeOwnerId) {
       throw {
         statusCode: 404,
         message: "Order not found",
