@@ -4,25 +4,25 @@ import type { CreateCustomerInput } from "../types/customer.types.js";
 const customerRepository =new CustomerRepository();
 export class CustomerService{
     async CreateCustomer(data: CreateCustomerInput){
-        const validateCustomer = await customerRepository.findCustomerByEmail(data)
-        if (validateCustomer){
-            throw {
-                statusCode: 409,
-                message: `customer with email : ${validateCustomer.email} already exist`
+        const existing = await customerRepository.findCustomerByEmail(data)
+        if (existing){
+            return {
+                statusCode: 200,
+                data: existing
             }
-        }else{
-            const createCustomer = await customerRepository.create(data)
-            if (createCustomer){
-                return{
-                    statusCode: 200,
-                    data: createCustomer
-                }
-            }else{
-                return {
-                    statusCode: 404,
-                    message: "Error creating customer"
-                }
+        }
+
+        const createCustomer = await customerRepository.create(data)
+        if (createCustomer){
+            return {
+                statusCode: 201,
+                data: createCustomer
             }
+        }
+
+        return {
+            statusCode: 500,
+            message: "Error creating customer"
         }
     }
 

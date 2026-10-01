@@ -8,6 +8,7 @@ export class CustomerRepository {
         email: data.email,
       },
       select: {
+        id: true,
         customerName: true,
         email: true,
         phoneNumber: true,
