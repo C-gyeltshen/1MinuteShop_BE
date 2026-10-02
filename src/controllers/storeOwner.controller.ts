@@ -1,7 +1,28 @@
 import type { Context } from "hono";
+import { setCookie, getCookie, deleteCookie } from "hono/cookie";
 import { StoreOwnerService } from "../services/storeOwner.service.js";
 import type { CreateStoreOwnerSchema } from "../validators/storeOwner.valadator.js";
 import { StoreOwnerStatus } from "../types/storeOwner.types.js";
+
+const IS_PROD = process.env.NODE_ENV === "production";
+
+function setAuthCookies(c: Context, accessToken: string, refreshToken: string) {
+  const base = {
+    httpOnly: true,
+    secure: IS_PROD,
+    sameSite: IS_PROD ? "None" : "Lax",
+    path: "/",
+  } as const;
+
+  setCookie(c, "accessToken", accessToken, { ...base, maxAge: 60 * 60 * 24 * 30 });
+  setCookie(c, "refreshToken", refreshToken, { ...base, maxAge: 60 * 60 * 24 * 180 });
+}
+
+function clearAuthCookies(c: Context) {
+  const base = { httpOnly: true, secure: IS_PROD, sameSite: IS_PROD ? "None" : "Lax", path: "/" } as const;
+  deleteCookie(c, "accessToken", base);
+  deleteCookie(c, "refreshToken", base);
+}
 
 const storeOwnerService = new StoreOwnerService();
 
@@ -19,14 +40,8 @@ export class StoreOwnerController {
         data.password,
       );
 
-      // Return tokens in body instead of cookies
-      return c.json(
-        {
-          success: true,
-          data: { user, accessToken, refreshToken },
-        },
-        201,
-      );
+      setAuthCookies(c, accessToken, refreshToken);
+      return c.json({ success: true, data: { user } }, 201);
     } catch (error: any) {
       // ... error handling
     }
@@ -107,14 +122,8 @@ export class StoreOwnerController {
         password,
       );
 
-      // Return tokens in body
-      return c.json(
-        {
-          success: true,
-          data: { user, accessToken, refreshToken },
-        },
-        200,
-      );
+      setAuthCookies(c, accessToken, refreshToken);
+      return c.json({ success: true, data: { user } }, 200);
     } catch (error: any) {
       return c.json({ success: false, error: error.message }, 401);
     }
@@ -122,28 +131,23 @@ export class StoreOwnerController {
 
   async refresh(c: Context) {
     try {
-      // Expect refreshToken in the request body instead of cookies
-      const { refreshToken: tokenFromBody } = await c.req.json();
+      const tokenFromCookie = getCookie(c, "refreshToken");
 
-      if (!tokenFromBody) {
+      if (!tokenFromCookie) {
         return c.json({ success: false, error: "Refresh token required" }, 401);
       }
 
-      // Fix: Destructure only what the service actually returns
-      const { accessToken, user } =
-        await storeOwnerService.refresh(tokenFromBody);
+      const { accessToken, user } = await storeOwnerService.refresh(tokenFromCookie);
 
-      return c.json(
-        {
-          success: true,
-          data: {
-            user,
-            accessToken,
-            refreshToken: tokenFromBody, // Return the existing refresh token back to the client
-          },
-        },
-        200,
-      );
+      setCookie(c, "accessToken", accessToken, {
+        httpOnly: true,
+        secure: IS_PROD,
+        sameSite: IS_PROD ? "None" : "Lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+
+      return c.json({ success: true, data: { user } }, 200);
     } catch (error: any) {
       return c.json({ success: false, error: error.message }, 401);
     }
@@ -153,7 +157,7 @@ export class StoreOwnerController {
     try {
       const user = c.get("user");
       await storeOwnerService.logout(user.id);
-      // No cookies to clear anymore
+      clearAuthCookies(c);
       return c.json({ success: true, message: "Logged out successfully" }, 200);
     } catch (error: any) {
       return c.json({ success: false, error: error.message }, 400);
@@ -195,17 +199,4 @@ export class StoreOwnerController {
     }
   }
 
-  private extractCookie(
-    cookieHeader: string | undefined,
-    name: string,
-  ): string | null {
-    if (!cookieHeader) return null;
-
-    const cookies = cookieHeader.split(";");
-    for (const cookie of cookies) {
-      const [key, value] = cookie.trim().split("=");
-      if (key === name) return value;
-    }
-    return null;
-  }
 }
