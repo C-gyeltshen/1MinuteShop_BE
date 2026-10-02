@@ -1,8 +1,11 @@
 import { ProductRepository } from "../repositories/product.repository.js";
 import type { CreateProductInput } from "../types/product.types.js";
 import { createProductSchema } from "../validators/product.valadators.js";
+import { StoreRepository } from "../repositories/store.repository.js";
+import { getSubscription } from "./subscriptionAccess.js";
 
 const productRepository = new ProductRepository();
+const storeRepository = new StoreRepository();
 
 export class ProductService {
   async createProduct(data: CreateProductInput) {
@@ -49,6 +52,11 @@ export class ProductService {
   }
 
   async getProductsBySubdomain(subdomain: string) {
+    const store = await storeRepository.findBySubDomain(subdomain.toLowerCase());
+    if (store && !getSubscription(store).hasAccess) {
+      throw { statusCode: 402, message: "This store is temporarily unavailable" };
+    }
+
     const products = await productRepository.findBySubdomain(subdomain);
 
     if (products.length === 0) {

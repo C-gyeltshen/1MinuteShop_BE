@@ -26,7 +26,12 @@ model StoreOwner {
   updatedAt      DateTime         @updatedAt
   lastLoginAt    DateTime?        @map("last_login_at") @db.Timestamptz(6)
 
+  // Subscription: store is live while now < max(trialEndsAt, subscriptionEndsAt)
+  trialEndsAt        DateTime  @default(dbgenerated("(now() + interval '30 days')")) @db.Timestamptz(6)
+  subscriptionEndsAt DateTime? @db.Timestamptz(6)
+
   // Relations
+  subscriptionPayments SubscriptionPayment[]
   products       Product[]
   orders         Order[]
   orderItems     OrderItem[]
@@ -335,4 +340,39 @@ model Token {
   @@index([storeOwnerId])
   @@index([expiresAt])
   @@map("access_tokens")
+}
+
+
+// =====================================================
+// SUBSCRIPTION PAYMENTS (manual, screenshot-based)
+// =====================================================
+
+model SubscriptionPayment {
+  id            String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeOwnerId  String                    @db.Uuid
+  months        Int                       @default(1)
+  amount        Decimal                   @db.Decimal(10, 2)
+  reference     String?
+  screenshotPath String
+  status        SubscriptionPaymentStatus @default(PENDING)
+  rejectReason  String?
+  reviewedBy    String?                   @db.Uuid
+  reviewedAt    DateTime?                 @db.Timestamptz(6)
+  periodStart   DateTime?                 @db.Timestamptz(6)
+  periodEnd     DateTime?                 @db.Timestamptz(6)
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  StoreOwner StoreOwner @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([storeOwnerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("subscription_payments")
+}
+
+enum SubscriptionPaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

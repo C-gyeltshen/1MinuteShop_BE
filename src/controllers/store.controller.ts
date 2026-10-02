@@ -20,7 +20,7 @@ export class StoreController {
       return c.json(result, 200);
     } catch (err: any) {
       return c.json(
-        { success: false, message: err.message || "Internal server error" },
+        { success: false, code: err.code, message: err.message || "Internal server error" },
         err.statusCode || 500,
       );
     }

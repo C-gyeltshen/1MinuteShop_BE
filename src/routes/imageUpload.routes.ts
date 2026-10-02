@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
 import { UploadController } from '../controllers/imageUpload.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
+import { requireActiveSubscription } from '../middlewares/subscription.middleware.js';
 
 const upload = new Hono();
 const uploadController = new UploadController();
 
 // POST /api/upload/image
-upload.post('/image', authMiddleware, uploadController.uploadImage);
+upload.post('/image', authMiddleware, requireActiveSubscription, uploadController.uploadImage);
 
 // DELETE /api/upload/image
 upload.delete('/image', authMiddleware, uploadController.deleteImage);

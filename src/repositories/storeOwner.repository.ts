@@ -32,6 +32,8 @@ export class StoreOwnerRepository {
         email: true,
         storeUrl: true,
         createdAt: true,
+        trialEndsAt: true,
+        subscriptionEndsAt: true,
       },
     });
   }

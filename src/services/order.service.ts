@@ -10,6 +10,7 @@ import type {
 } from "../types/orders.types.js";
 import { StoreOwnerRepository } from "../repositories/storeOwner.repository.js";
 import { TelegramService } from "./telegram.service.js";
+import { getSubscription } from "./subscriptionAccess.js";
 import type { UpdateOrderStatusInput, UpdatePaymentStatusInput } from "../validators/order.valadator.js";
 
 const customerRepository = new CustomerRepository();
@@ -64,6 +65,13 @@ export class OrderService {
         throw {
           statusCode: 400,
           message: "Store is not active",
+        };
+      }
+
+      if (!getSubscription(store).hasAccess) {
+        throw {
+          statusCode: 402,
+          message: "This store is not accepting orders right now",
         };
       }
 

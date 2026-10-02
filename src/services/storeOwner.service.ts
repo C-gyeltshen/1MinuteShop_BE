@@ -5,6 +5,8 @@ import type {
 } from "../types/storeOwner.types.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { getSubscription, MONTHLY_PRICE_BTN } from "./subscriptionAccess.js";
+import { isAdminId } from "../middlewares/subscription.middleware.js";
 
 const storeOwnerRepository = new StoreOwnerRepository();
 
@@ -282,6 +284,8 @@ export class StoreOwnerService {
       storeSubdomain: owner.storeSubdomain,
       storeUrl: owner.storeUrl,
       createdAt: owner.createdAt,
+      isAdmin: isAdminId(owner.id),
+      subscription: { ...getSubscription(owner), monthlyPrice: MONTHLY_PRICE_BTN },
     };
   }
 

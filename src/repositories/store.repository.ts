@@ -8,7 +8,9 @@ export class StoreRepository{
                 id:true,
                 storeSubdomain: true,
                 storeName: true,
-                status: true
+                status: true,
+                trialEndsAt: true,
+                subscriptionEndsAt: true
             }
         })
     }

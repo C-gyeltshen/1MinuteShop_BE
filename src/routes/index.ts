@@ -7,6 +7,8 @@ import customerRoutes from "./customer.routes.js";
 import orderRoutes from "./order.routes.js";
 import storeSettingsRoutes from "./storeSettings.routes.js";
 import telegramRoutes from "./telegram.routes.js";
+import subscriptionRoutes from "./subscription.routes.js";
+import adminRoutes from "./admin.routes.js";
 
 const router = new Hono();
 
@@ -18,5 +20,7 @@ router.route('/orders', orderRoutes);
 router.route("/customers", customerRoutes)
 router.route("/store-settings", storeSettingsRoutes);
 router.route("/telegram", telegramRoutes);
+router.route("/subscription", subscriptionRoutes);
+router.route("/admin", adminRoutes);
 
 export default router;

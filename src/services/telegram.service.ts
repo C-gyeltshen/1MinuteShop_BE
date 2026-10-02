@@ -190,4 +190,55 @@ export class TelegramService {
 
     await this.sendMessage(connection.chatId, text);
   }
+
+  // ── Subscription notifications ──────────────────────────────────────────
+
+  // Platform admin alert. Chat id comes from ADMIN_TELEGRAM_CHAT_ID (message the bot, then
+  // read the id from getUpdates).
+  async notifyAdminSubscriptionRequest(info: {
+    storeName: string;
+    ownerName: string;
+    email: string;
+    months: number;
+    amount: number;
+    reference?: string | null;
+  }) {
+    const chatId = process.env.ADMIN_TELEGRAM_CHAT_ID;
+    if (!chatId) {
+      console.warn("Telegram: ADMIN_TELEGRAM_CHAT_ID is not set, skipping admin alert");
+      return;
+    }
+
+    const adminUrl = `${process.env.FRONTEND_URL || "https://laso.la"}/admin/subscriptions`;
+
+    const text = [
+      `💳 <b>New subscription payment</b>`,
+      "",
+      `<b>Store:</b> ${escapeHtml(info.storeName)}`,
+      `<b>Owner:</b> ${escapeHtml(info.ownerName)} (${escapeHtml(info.email)})`,
+      `<b>Amount:</b> BTN ${info.amount.toFixed(2)} for ${info.months} month${info.months > 1 ? "s" : ""}`,
+      info.reference ? `<b>Reference:</b> ${escapeHtml(info.reference)}` : "",
+      "",
+      `Review it in the <a href="${escapeHtml(adminUrl)}">admin dashboard</a>.`,
+    ]
+      .filter((line, i, all) => line !== "" || all[i - 1] !== "")
+      .join("\n");
+
+    await this.sendMessage(chatId, text);
+  }
+
+  // Tells the owner (if they linked Telegram) how their payment was reviewed.
+  async notifyOwnerSubscriptionReviewed(
+    storeOwnerId: string,
+    result: { approved: true; accessEndsAt: Date } | { approved: false; reason: string },
+  ) {
+    const connection = await telegramRepository.findByStoreOwnerId(storeOwnerId);
+    if (!connection?.chatId || !connection.notificationsEnabled) return;
+
+    const text = result.approved
+      ? `✅ <b>Payment approved</b>\nYour store is live until <b>${result.accessEndsAt.toDateString()}</b>. Thank you!`
+      : `❌ <b>Payment rejected</b>\nReason: ${escapeHtml(result.reason)}\nPlease submit a new payment from your dashboard.`;
+
+    await this.sendMessage(connection.chatId, text);
+  }
 }
