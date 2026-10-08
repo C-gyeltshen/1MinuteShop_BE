@@ -8,6 +8,7 @@ import type {
   PaymentStatus,
   ValidatedOrderItem,
 } from "../types/orders.types.js";
+import { PaymentAccountRepository } from "../repositories/paymentAccount.repository.js";
 import { StoreOwnerRepository } from "../repositories/storeOwner.repository.js";
 import { TelegramService } from "./telegram.service.js";
 import { getSubscription } from "./subscriptionAccess.js";
@@ -18,6 +19,7 @@ const productRepository = new ProductRepository();
 const orderRepository = new OrderRepository();
 const storeRepository = new StoreRepository();
 const storeOwnerRepository = new StoreOwnerRepository();
+const paymentAccountRepository = new PaymentAccountRepository();
 const telegramService = new TelegramService();
 
 export class OrderService {
@@ -72,6 +74,15 @@ export class OrderService {
         throw {
           statusCode: 402,
           message: "This store is not accepting orders right now",
+        };
+      }
+
+      // A store with nowhere to receive payment cannot take orders
+      if (!(await paymentAccountRepository.findByStoreOwnerId(store.id))) {
+        throw {
+          statusCode: 409,
+          code: "PAYMENT_ACCOUNT_REQUIRED",
+          message: "This store is not accepting orders yet",
         };
       }
 

@@ -85,6 +85,7 @@ export class OrderController {
       return c.json(
         {
           success: false,
+          code: (error as any).code,
           message: (error as any).message || "An error occurred",
         },
         (error as any).statusCode || 500,

@@ -32,6 +32,7 @@ model StoreOwner {
 
   // Relations
   subscriptionPayments SubscriptionPayment[]
+  paymentAccount StorePaymentAccount?
   products       Product[]
   orders         Order[]
   orderItems     OrderItem[]
@@ -375,4 +376,33 @@ enum SubscriptionPaymentStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+
+// =====================================================
+// STORE PAYMENT ACCOUNT (where customers send payment)
+// One per store; drop the unique on storeOwnerId to allow several later.
+// =====================================================
+
+model StorePaymentAccount {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeOwnerId  String   @unique @db.Uuid
+  bank          Bank
+  accountNumber String
+  accountName   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  StoreOwner StoreOwner @relation(fields: [storeOwnerId], references: [id], onDelete: Cascade)
+
+  @@map("store_payment_accounts")
+}
+
+enum Bank {
+  BOB
+  BNB
+  DPNB
+  TBANK
+  BDBL
+  DKB
 }
